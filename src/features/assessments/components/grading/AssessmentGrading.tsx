@@ -20,6 +20,7 @@ import { BloomsTaxonomyLevel } from '@/features/bloom/types/bloom-taxonomy';
 import { EnhancedGradingInterface } from './EnhancedGradingInterface';
 import { api } from '@/trpc/react';
 import { useToast } from '@/components/ui/feedback/toast';
+import { GradingType as APIGradingType, SubmissionStatus as APISubmissionStatus } from '@/server/api/constants'; // For backend enum types
 
 interface AssessmentGradingProps {
   assessmentId: string;
@@ -62,13 +63,23 @@ export function AssessmentGrading({
     studentId
   );
 
-  // Submit grades mutation
-  const submitGradesMutation = api.submission.update.useMutation({
+  const utils = api.useContext(); // Get tRPC utils for invalidation
+
+  // Use the correct mutation for grading: api.assessment.grade
+  const gradeSubmissionMutation = api.assessment.grade.useMutation({
     onSuccess: () => {
       toast({
-        title: 'Grades submitted',
-        description: 'The grades have been submitted successfully',
+        title: 'Grading saved',
+        description: 'The grading has been saved successfully',
       });
+      // Invalidate queries to refetch submission & assessment data after grading
+      utils.assessment.getSubmission.invalidate({ id: submissionId });
+      utils.assessment.getById.invalidate({ assessmentId });
+      if (assessment?.classId) { // Invalidate class analytics if classId is available
+        utils.mastery.getClassAnalytics.invalidate({ classId: assessment.classId });
+      }
+      // Potentially invalidate student grades or broader teacher queries if needed
+      // utils.teacher.getTeacherClasses.invalidate(); // Example if this data could change
 
       if (onGraded) {
         onGraded();
@@ -76,49 +87,95 @@ export function AssessmentGrading({
     },
     onError: (error) => {
       toast({
-        title: 'Error submitting grades',
-        description: error.message || 'There was an error submitting the grades',
+        title: 'Error Submitting Grading',
+        description: error.message || 'An unexpected error occurred.',
         variant: 'error',
       });
     },
+    onSettled: () => {
+      setIsSubmitting(false);
+    }
   });
 
-  // Handle rubric grade change
-  const handleRubricGradeChange = (rubricResult: {
+  // This is the callback passed as onGradeSubmit to EnhancedGradingInterface
+  const handleEnhancedGrading = (result: {
     score: number;
-    criteriaGrades: Array<{
+    feedback?: string; // Overall feedback
+    criteriaGrades?: Array<{ // From structured Bloom's rubric
       criterionId: string;
       levelId: string;
       score: number;
       feedback?: string;
     }>;
+    customRubricGrades?: Array<{ // From custom JSON rubric (mapped by EnhancedGradingInterface)
+        criterionId: string;
+        levelId?: string;
+        points: number;
+        feedback?: string;
+        levelName?: string;
+    }>;
     bloomsLevelScores?: Record<BloomsTaxonomyLevel, number>;
   }) => {
-    if (!submission) return;
-
+    if (!submission || !assessment) {
+        console.error("Submission or assessment data is not available for grading.");
+        toast({ title: "Error", description: "Cannot save grade, submission/assessment data missing.", variant: "error" });
+        setIsSubmitting(false); // Ensure submitting state is reset
+        return;
+    }
     setIsSubmitting(true);
 
-    submitGradesMutation.mutate({
-      id: submission.id,
-      data: {
-        score: rubricResult.score,
-        feedback: JSON.stringify({
-          bloomsLevelScores: rubricResult.bloomsLevelScores,
-          criteriaResults: rubricResult.criteriaGrades.map(grade => ({
-            criterionId: grade.criterionId,
-            score: grade.score,
-            feedback: grade.feedback,
-          })),
-        }),
-        status: 'GRADED' as any,
-        gradedById: undefined, // Will be set by the server
-      }
-    }, {
-      onSettled: () => setIsSubmitting(false),
+    let backendRubricResults: Array<{
+      criteriaId: string;
+      performanceLevelId: string; // Backend expects performanceLevelId
+      score: number;
+      feedback?: string;
+    }> | undefined = undefined;
+
+    // Use determinedGradingMethodUI which is now hoisted
+    if (determinedGradingMethodUI === 'RUBRIC_BASED' && result.criteriaGrades) {
+        backendRubricResults = result.criteriaGrades.map(cg => ({
+           criteriaId: cg.criterionId,
+           performanceLevelId: cg.levelId, // Ensure this maps to what backend expects
+           score: cg.score,
+           feedback: cg.feedback
+        }));
+    } else if (determinedGradingMethodUI === 'CUSTOM_JSON_RUBRIC' && result.customRubricGrades) {
+        backendRubricResults = result.customRubricGrades.map(customGrade => ({
+            criteriaId: customGrade.criterionId,
+            performanceLevelId: customGrade.levelId || '', // Ensure a string, even if empty, if backend expects it
+            score: customGrade.points,
+            feedback: customGrade.feedback,
+            // levelName is not part of backendRubricResults schema, so it's omitted here
+        }));
+    }
+
+    // Determine the backend gradingType
+    let backendGradingType: APIGradingType;
+    if (determinedGradingMethodUI === 'RUBRIC_BASED' || determinedGradingMethodUI === 'CUSTOM_JSON_RUBRIC') {
+        backendGradingType = APIGradingType.RUBRIC_BASED; // Both use RUBRIC_BASED for backend if they involve rubrics
+    } else { // SCORE_BASED
+        backendGradingType = APIGradingType.SCORE_BASED;
+    }
+    // Consider if assessment.gradingType (e.g. MANUAL) should override:
+    if (assessment.gradingType === APIGradingType.MANUAL && determinedGradingMethodUI === 'SCORE_BASED') {
+        backendGradingType = APIGradingType.MANUAL; // Or keep as SCORE_BASED if MANUAL maps to score input
+    }
+
+
+    gradeSubmissionMutation.mutate({
+      submissionId: submission.id,
+      gradingType: backendGradingType,
+      score: result.score, // Overall score
+      feedback: result.feedback, // Overall feedback text
+      rubricResults: backendRubricResults,
+      bloomsLevelScores: result.bloomsLevelScores,
+      status: APISubmissionStatus.GRADED // Set status to GRADED
     });
   };
 
-  // Handle cognitive grade change
+  // Handle cognitive grade change (This seems like an older/alternative grading path, may need review or removal)
+  // If EnhancedGradingInterface handles cognitive grading and calls onGradeSubmit (handleEnhancedGrading), this might be redundant.
+  // For now, assuming it might be used by a different UI path not shown.
   const handleCognitiveGradeChange = (cognitiveResult: {
     score: number;
     feedback?: string;
@@ -289,53 +346,128 @@ export function AssessmentGrading({
     });
   };
 
+  // --- Refactoring: Hoisted determination logic for rubric/grading method ---
+  let activeRubricDataUI: any | undefined = undefined;
+  let determinedGradingMethodUI: 'SCORE_BASED' | 'RUBRIC_BASED' | 'CUSTOM_JSON_RUBRIC' = 'SCORE_BASED';
+
+  if (assessment && !(assessmentLoading || submissionLoading || studentLoading)) { // Ensure data is loaded
+     if (assessment.bloomsRubric) {
+         activeRubricDataUI = {
+             id: assessment.bloomsRubric.id,
+             criteria: assessment.bloomsRubric.criteria,
+             performanceLevels: assessment.bloomsRubric.performanceLevels,
+         };
+         determinedGradingMethodUI = 'RUBRIC_BASED';
+         console.log('[AssessmentGrading] Using linked Blooms Rubric (UI determination).');
+     } else if (assessment.rubric && typeof assessment.rubric === 'object' && (assessment.rubric as any).criteria) {
+         activeRubricDataUI = assessment.rubric as any;
+         determinedGradingMethodUI = 'CUSTOM_JSON_RUBRIC';
+         console.log('[AssessmentGrading] Using custom JSON Rubric from assessment.rubric (UI determination).');
+     } else if (assessment.gradingType === APIGradingType.SCORE_BASED || assessment.gradingType === APIGradingType.MANUAL || (!assessment.bloomsRubric && !assessment.rubric)) {
+         determinedGradingMethodUI = 'SCORE_BASED';
+         console.log('[AssessmentGrading] Using SCORE_BASED grading (UI determination).');
+     } else {
+         determinedGradingMethodUI = 'SCORE_BASED'; // Fallback safely
+         console.warn('[AssessmentGrading] Assessment gradingType might be RUBRIC, but no rubric data found. Defaulting to SCORE_BASED (UI determination).');
+     }
+  }
+  // --- End of Hoisted Logic ---
+
+
   // Render the enhanced grading interface
   const renderGradingInterface = () => {
-    // Determine grading method based on assessment configuration
-    // Check if assessment has a rubric ID and the rubric is available
-    const hasRubric = assessment.rubricId && rubric;
-    const gradingMethod = hasRubric ? 'RUBRIC_BASED' : 'SCORE_BASED';
+    if (assessmentLoading || submissionLoading || studentLoading || !assessment || !submission) {
+      // This check is defensive; main loading state handles this for the whole component.
+      // However, if this function were called independently, it's good practice.
+      return (
+        <div className="flex justify-center items-center h-40">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p className="ml-2 text-muted-foreground">Loading grading tools...</p>
+        </div>
+      );
+    }
 
-    // Debug logging to help identify the issue
-    console.log('Assessment Grading Debug:', {
+    // Debug logging (can be removed or made conditional for production)
+    // Moved to be after data loading checks
+    console.log('Assessment Grading Debug (Render):', {
       assessmentId: assessment.id,
       assessmentTitle: assessment.title,
-      rubricId: assessment.rubricId,
-      hasRubricData: !!rubric,
-      rubricCriteria: rubric?.criteria?.length || 0,
-      rubricPerformanceLevels: rubric?.performanceLevels?.length || 0,
-      hasRubric,
-      gradingMethod,
-      gradingType: assessment.gradingType
+      hasBloomsRubric: !!assessment.bloomsRubric,
+      hasJsonRubric: !!assessment.rubric,
+      determinedGradingMethodUI, // Use hoisted variable
+      gradingTypeFromAssessmentDB: assessment.gradingType,
     });
 
-    // Prepare rubric data if available
-    const rubricData = hasRubric ? {
-      id: rubric.id,
-      criteria: rubric.criteria as any,
-      performanceLevels: rubric.performanceLevels as any,
-    } : undefined;
-
-    // Prepare Bloom's distribution
     const bloomsDistribution = assessment.bloomsDistribution as Record<BloomsTaxonomyLevel, number> | undefined;
+
+    let initialFeedbackString = '';
+    let initialCriteriaGrades: any[] | undefined = undefined;
+    let initialCustomRubricSelections: any | undefined = undefined; // For custom rubrics
+    let initialBloomsLevelScores: Record<BloomsTaxonomyLevel, number> | undefined = undefined;
+
+    if (submission.feedback && typeof submission.feedback === 'string') {
+      try {
+        const parsedDetails = JSON.parse(submission.feedback);
+        initialFeedbackString = parsedDetails.overallFeedback || parsedDetails.feedback || '';
+        // Check which type of rubric results are present
+        if (parsedDetails.criteriaResults) { // This was the old common field
+            if (determinedGradingMethodUI === 'RUBRIC_BASED') { // Assume it's for Blooms
+                initialCriteriaGrades = parsedDetails.criteriaResults;
+            } else if (determinedGradingMethodUI === 'CUSTOM_JSON_RUBRIC') {
+                // Map criteriaResults back to customRubricSelections format if possible, or expect a different field
+                // For now, if it's custom, we expect customRubricSelections to be stored differently or not at all directly in criteriaResults.
+                // The `handleEnhancedGrading` now receives `customRubricGrades` (array) or `criteriaGrades` (array).
+                // The stringified `feedback` field in the DB stores `gradingDetailsPayload` which has `overallFeedback` and `criteriaResults` (mapped from custom/structured).
+                // So, when rehydrating, `parsedDetails.criteriaResults` *is* the `backendRubricResults`.
+                // We need to map this back to `customRubricSelections` for the CustomJsonRubricGrading component.
+                if (determinedGradingMethodUI === 'CUSTOM_JSON_RUBRIC' && parsedDetails.criteriaResults) {
+                    initialCustomRubricSelections = parsedDetails.criteriaResults.reduce((acc: any, res: any) => {
+                        acc[res.criteriaId] = { levelId: res.performanceLevelId, points: res.score, feedback: res.feedback, levelName: res.levelName /* if stored */ };
+                        return acc;
+                    }, {});
+                } else { // blooms
+                     initialCriteriaGrades = parsedDetails.criteriaResults;
+                }
+            }
+        }
+        initialBloomsLevelScores = parsedDetails.bloomsLevelScores;
+      } catch (e) {
+        console.warn("Failed to parse submission.feedback JSON for initial values, using as raw string.", e);
+        initialFeedbackString = submission.feedback;
+      }
+    } else if (typeof submission.feedback === 'object' && submission.feedback !== null) {
+        const feedbackObj = submission.feedback as any;
+        initialFeedbackString = feedbackObj.overallFeedback || feedbackObj.feedback || '';
+        if (determinedGradingMethodUI === 'CUSTOM_JSON_RUBRIC' && feedbackObj.criteriaResults) {
+            initialCustomRubricSelections = feedbackObj.criteriaResults.reduce((acc: any, res: any) => {
+                acc[res.criteriaId] = { levelId: res.performanceLevelId, points: res.score, feedback: res.feedback, levelName: res.levelName };
+                return acc;
+            }, {});
+        } else {
+            initialCriteriaGrades = feedbackObj.criteriaResults;
+        }
+        initialBloomsLevelScores = feedbackObj.bloomsLevelScores;
+    }
+
 
     return (
       <EnhancedGradingInterface
         assessmentId={assessmentId}
         submissionId={submission.id}
         maxScore={assessment.maxScore || 100}
-        gradingMethod={gradingMethod as 'SCORE_BASED' | 'RUBRIC_BASED'}
-        rubric={rubricData}
+        gradingMethod={determinedGradingMethodUI} // Use hoisted variable
+        rubric={activeRubricDataUI} // Use hoisted variable
         bloomsDistribution={bloomsDistribution}
         initialValues={{
           score: submission.score || 0,
-          feedback: typeof submission.feedback === 'string' ? submission.feedback : '',
-          criteriaGrades: (submission.attachments as any)?.gradingDetails?.criteriaResults,
-          bloomsLevelScores: (submission.attachments as any)?.gradingDetails?.bloomsLevelScores,
+          feedback: initialFeedbackString,
+          criteriaGrades: initialCriteriaGrades,
+          customRubricSelections: initialCustomRubricSelections,
+          bloomsLevelScores: initialBloomsLevelScores,
         }}
         onGradeSubmit={handleEnhancedGrading}
         readOnly={isGraded}
-        showTopicMasteryImpact={true}
+        // showTopicMasteryImpact={true} // This prop seems to be from a different context, remove if not used by EGI directly
         topicMasteryData={[
           // Mock data - replace with real API call
           {
