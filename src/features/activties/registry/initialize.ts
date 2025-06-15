@@ -9,20 +9,109 @@
 
 import { z } from 'zod';
 import { ActivityPurpose, AssessmentType } from '@/server/api/constants';
-import { BloomsTaxonomyLevel } from '@/features/bloom/types/bloom-taxonomy';
+// import { BloomsTaxonomyLevel } from '@/features/bloom/types/bloom-taxonomy'; // Not used by Essay schema directly
 import { activityRegistry } from './index';
 import { ManualGradingCreator } from '../components/activity-creators/ManualGradingCreator';
 import { ManualGradingViewer } from '../components/activity-viewers/ManualGradingViewer';
+import { EssayActivityCreator } from '../components/activity-creators/EssayActivityCreator';
+import { EssayActivityViewer } from '../components/activity-viewers/EssayActivityViewer';
+import { createDefaultEssayActivity } from '../models/essay';
+import { EssayRubricCriterion as EssayRubricCriterionType, EssayRubricLevel as EssayRubricLevelType } from '@/features/question-bank/models/types'; // Renaming to avoid conflict with schema const
+
 
 // Initialize all activity types
 export function initializeActivityRegistry() {
   // Register manual grading activity
   registerManualGradingActivity();
   
+  // Register essay activity
+  registerEssayActivity();
+
   // Add other activity type registrations here
   // registerMultipleChoiceActivity();
   // registerTrueFalseActivity();
   // etc.
+}
+
+
+// Zod Schemas for Essay Activity
+const EssayRubricLevelSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, 'Level name is required'),
+  description: z.string().min(1, 'Level description is required'),
+  points: z.number().min(0, 'Points cannot be negative'),
+});
+
+const EssayRubricCriterionSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, 'Criterion name is required'),
+  description: z.string().min(1, 'Criterion description is required'),
+  points: z.number().min(0, 'Points cannot be negative'),
+  levels: z.array(EssayRubricLevelSchema).min(1, 'At least one level is required per criterion'),
+});
+
+const EssayRubricSchema = z.object({
+  criteria: z.array(EssayRubricCriterionSchema).min(1, 'At least one criterion is required for the rubric'),
+  totalPoints: z.number().min(0, 'Total points cannot be negative'),
+});
+
+const EssayActivitySchema = z.object({
+  title: z.string().min(3, 'Title must be at least 3 characters'),
+  description: z.string().optional(),
+  instructions: z.string().optional(),
+  prompt: z.string().min(10, 'Prompt must be at least 10 characters'),
+  wordCountMin: z.number().min(0).optional(),
+  wordCountMax: z.number().min(0).optional(),
+  rubric: EssayRubricSchema.optional(),
+  settings: z.object({
+    showRubricToStudents: z.boolean().default(true),
+  }).optional(),
+  metadata: z.object({
+       aiGenerated: z.boolean().optional(),
+       difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
+       estimatedTime: z.number().optional(),
+       learningObjectives: z.array(z.string()).optional(),
+  }).optional(),
+});
+
+// Essay Activity Registration
+function registerEssayActivity() {
+  const defaultEssayConfig = createDefaultEssayActivity();
+
+  const registryDefaultConfig = {
+    title: defaultEssayConfig.title,
+    description: defaultEssayConfig.description,
+    instructions: defaultEssayConfig.instructions,
+    prompt: defaultEssayConfig.prompt,
+    wordCountMin: defaultEssayConfig.wordCountMin,
+    wordCountMax: defaultEssayConfig.wordCountMax,
+    rubric: defaultEssayConfig.rubric,
+    settings: {
+       showRubricToStudents: true,
+    },
+    metadata: defaultEssayConfig.metadata,
+  };
+
+  activityRegistry.register({
+    id: 'essay',
+    name: 'Essay Activity',
+    description: 'Students write essays based on prompts, with rubric-based grading.',
+    category: ActivityPurpose.ASSESSMENT,
+    subCategory: 'ESSAY', // Using string literal, AssessmentType.ESSAY might not exist
+    configSchema: EssayActivitySchema,
+    defaultConfig: registryDefaultConfig,
+    capabilities: {
+      isGradable: true,
+      hasSubmission: true,
+      hasInteraction: true,
+      hasRealTimeComponents: false,
+      requiresTeacherReview: true,
+    },
+    components: {
+      editor: EssayActivityCreator,
+      viewer: EssayActivityViewer,
+    },
+  });
 }
 
 // Manual Grading Activity Registration
@@ -32,7 +121,7 @@ function registerManualGradingActivity() {
     title: z.string().min(3, 'Title must be at least 3 characters'),
     description: z.string().min(10, 'Description must be at least 10 characters'),
     instructions: z.string().min(10, 'Instructions must be at least 10 characters'),
-    bloomsLevel: z.nativeEnum(BloomsTaxonomyLevel),
+    // bloomsLevel: z.nativeEnum(BloomsTaxonomyLevel), // Not used in Essay, removed from its direct metadata schema
     rubricId: z.string().optional(),
     submissionInstructions: z.string().optional(),
     settings: z.object({
