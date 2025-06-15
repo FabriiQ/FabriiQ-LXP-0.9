@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "H5P Content Type Cache",
+  "type": "object",
+  "required": ["libraries"],
+  "properties": {
+    "libraries": {
+      "type": "array",
+      "description": "The libraries in the content type cache",
+      "items": {
+        "type": "object",
+        "required": ["machineName", "majorVersion", "minorVersion", "patchVersion", "runnable"],
+        "properties": {
+          "machineName": {
+            "type": "string",
+            "description": "The machine name of the library (e.g. H5P.MultiChoice)"
+          },
+          "majorVersion": {
+            "type": "integer",
+            "description": "The major version of the library"
+          },
+          "minorVersion": {
+            "type": "integer",
+            "description": "The minor version of the library"
+          },
+          "patchVersion": {
+            "type": "integer",
+            "description": "The patch version of the library"
+          },
+          "runnable": {
+            "type": "integer",
+            "description": "Whether the library is runnable (1) or not (0)"
+          },
+          "title": {
+            "type": "string",
+            "description": "The human readable title of the library"
+          },
+          "metadataSettings": {
+            "type": "object",
+            "description": "Settings for the metadata of the library",
+            "properties": {
+              "disable": {
+                "type": "boolean",
+                "description": "Whether metadata is disabled for this library"
+              },
+              "disableExtraTitleField": {
+                "type": "boolean",
+                "description": "Whether the extra title field is disabled for this library"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

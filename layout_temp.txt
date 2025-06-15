@@ -1,0 +1,5 @@
+import React from 'react'; 
+import type { Metadata } from 'next'; 
+import { ProfileLayoutClient } from './profile-layout-client'; 
+ 
+export const metadata: Metadata = { 

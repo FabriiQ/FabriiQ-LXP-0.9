@@ -1,0 +1,23 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+
+export default function AssignmentsRedirectPage() {
+  const params = useParams();
+  const router = useRouter();
+  const classId = params?.id as string;
+
+  useEffect(() => {
+    // Redirect to the assessments page
+    if (classId) {
+      router.replace(`/admin/campus/classes/${classId}/assessments`);
+    }
+  }, [classId, router]);
+  
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <p className="text-lg">Redirecting to assessments page...</p>
+    </div>
+  );
+}

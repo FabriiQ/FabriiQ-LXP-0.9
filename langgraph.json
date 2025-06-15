@@ -1,0 +1,14 @@
+{
+  "node_version": "20",
+  "dependencies": [
+    "."
+  ],
+  "graphs": {
+    "worksheet": "./src/features/canvas/agents/worksheet/index.ts:graph",
+    "reflection": "./src/features/canvas/agents/reflection/index.ts:graph",
+    "thread_title": "./src/features/canvas/agents/thread-title/index.ts:graph",
+    "summarizer": "./src/features/canvas/agents/summarizer/index.ts:graph",
+    "web_search": "./src/features/canvas/agents/web-search/index.ts:graph"
+  },
+  "env": ".env"
+}

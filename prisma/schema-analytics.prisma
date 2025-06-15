@@ -1,0 +1,40 @@
+// Analytics Schema Updates
+// These models should be added to the main prisma/schema.prisma file
+
+// Analytics Event Model
+model AnalyticsEvent {
+  id          String       @id @default(cuid())
+  eventType   String
+  category    String
+  userId      String
+  metadata    Json?
+  timestamp   DateTime     @default(now())
+  status      SystemStatus @default(ACTIVE)
+  
+  @@index([userId])
+  @@index([category])
+  @@index([eventType])
+  @@index([timestamp])
+  @@map("analytics_events")
+}
+
+// Analytics Metric Model
+model AnalyticsMetric {
+  id               String       @id @default(cuid())
+  userId           String
+  category         String
+  totalEvents      Int          @default(0)
+  messageCount     Int          @default(0)
+  searchCount      Int          @default(0)
+  feedbackCount    Int          @default(0)
+  voiceInputCount  Int          @default(0)
+  voiceOutputCount Int          @default(0)
+  firstSeen        DateTime     @default(now())
+  lastUpdated      DateTime     @updatedAt
+  status           SystemStatus @default(ACTIVE)
+  
+  @@unique([userId, category])
+  @@index([userId])
+  @@index([category])
+  @@map("analytics_metrics")
+}

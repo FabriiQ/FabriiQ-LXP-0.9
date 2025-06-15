@@ -1,0 +1,314 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { PageLayout } from '@/components/layout/page-layout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/data-display/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/forms/select';
+import { ArrowLeft, Trash, UserPlus, User } from 'lucide-react';
+import { useToast } from '@/components/ui/feedback/toast';
+import { api } from '@/trpc/react';
+import { JsonValue } from 'type-fest';
+import { SystemStatus } from '@prisma/client';
+
+// Define proper interfaces based on your Prisma schema
+interface User {
+  id: string;
+  name: string | null;
+  email: string | null;
+}
+
+interface Teacher {
+  id: string;
+  userId: string;
+  user: User;
+  specialization: string | null;
+  qualifications: JsonValue[];
+  achievements: JsonValue[];
+  attendanceRate: number | null;
+}
+
+// Update the TeacherAssignment interface to match what comes from the API
+interface TeacherAssignment {
+  id: string;
+  teacherId: string;
+  classId: string;
+  status: SystemStatus;
+  startDate: Date;
+  endDate: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  teacher?: {
+    id: string;
+    user: User;
+    qualifications?: JsonValue[];
+    specialization?: string | null;
+  };
+}
+
+interface ClassData {
+  id: string;
+  name: string;
+  status: SystemStatus;
+  courseCampusId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt: Date | null;
+  campusId: string;
+  code: string;
+  programCampusId: string | null;
+  teachers: TeacherAssignment[];
+}
+
+export default function AssignTeacherPage() {
+  const params = useParams();
+  const router = useRouter();
+  const { toast } = useToast();
+  const classId = params?.id as string;
+
+  const [selectedTeacher, setSelectedTeacher] = useState<string>('');
+  const [assignmentType, setAssignmentType] = useState<'PRIMARY' | 'ASSISTANT'>('PRIMARY');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Update query to include proper types
+  const { data: classData, isLoading: isLoadingClass, error: classError } = api.class.getById.useQuery({
+    classId,
+    include: {
+      students: false,
+      teachers: true,
+      classTeacher: {
+        include: {
+          user: true
+        }
+      }
+    }
+  });
+
+  // Update teachers query to include user data and filter by campus
+  const { data: teachers, isLoading: isLoadingTeachers } = api.teacher.getAllTeachers.useQuery({
+    campusId: classData?.campusId,
+  }, {
+    enabled: !!classData?.campusId
+  });
+
+  // Update mutation with proper types
+  const assignTeacherMutation = api.class.assignTeacher.useMutation({
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Teacher assigned successfully',
+        variant: 'success',
+      });
+      router.push(`/admin/campus/classes/${classId}`);
+      router.refresh();
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: `Failed to assign teacher: ${error.message}`,
+        variant: 'error',
+      });
+      setIsSubmitting(false);
+    },
+  });
+
+  useEffect(() => {
+    // Access teachers array safely
+    const teachersArray = classData?.teachers || [];
+
+    // Find a primary teacher by looking at the teacher relationship
+    const currentTeacher = teachersArray.find((t) =>
+      t.teacher?.id && t.status === 'ACTIVE'
+    );
+
+    if (currentTeacher?.teacher?.id) {
+      setSelectedTeacher(currentTeacher.teacher.id);
+      // Since we don't have assignment type in the data,
+      // default to PRIMARY for the first teacher
+      setAssignmentType('PRIMARY');
+    }
+  }, [classData]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedTeacher) {
+      toast({
+        title: 'Error',
+        description: 'Please select a teacher',
+        variant: 'error',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    assignTeacherMutation.mutate({
+      classId,
+      teacherId: selectedTeacher,
+      assignmentType
+    });
+  };
+
+  // Loading state
+  if (isLoadingClass || isLoadingTeachers) {
+    return (
+      <PageLayout
+        title="Loading..."
+        description="Loading class details"
+        breadcrumbs={[
+          { label: 'Classes', href: '/admin/campus/classes' },
+          { label: 'Loading...', href: '#' },
+        ]}
+      >
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  // Error state
+  if (classError) {
+    return (
+      <PageLayout
+        title="Error"
+        description="Failed to load class details"
+        breadcrumbs={[
+          { label: 'Classes', href: '/admin/campus/classes' },
+          { label: 'Error', href: '#' },
+        ]}
+      >
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-12">
+              <h3 className="text-lg font-medium mb-2">Error Loading Class</h3>
+              <p className="text-muted-foreground mb-6">
+                There was an error loading the class details: {classError.message}
+              </p>
+              <Button asChild>
+                <Link href="/admin/campus/classes">Back to Classes</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </PageLayout>
+    );
+  }
+
+  return (
+    <PageLayout
+      title={`Assign Teacher: ${classData?.name || ''}`}
+      description="Assign a teacher to this class"
+      breadcrumbs={[
+        { label: 'Classes', href: '/admin/campus/classes' },
+        { label: classData?.name || 'Class', href: `/admin/campus/classes/${classId}` },
+        { label: 'Assign Teacher', href: '#' },
+      ]}
+      actions={
+        <Button asChild variant="outline">
+          <Link href={`/admin/campus/classes/${classId}`}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Class
+          </Link>
+        </Button>
+      }
+    >
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Assign Teacher</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="teacher" className="text-sm font-medium">Select Teacher</label>
+                <Select
+                  value={selectedTeacher}
+                  onValueChange={setSelectedTeacher}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a teacher" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teachers?.map((teacher) => (
+                      <SelectItem key={teacher.id} value={teacher.id}>
+                        {teacher.user.name || 'Unnamed'} - {teacher.user.email || 'No email'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="assignmentType" className="text-sm font-medium">Assignment Type</label>
+                <Select
+                  value={assignmentType}
+                  onValueChange={(value: 'PRIMARY' | 'ASSISTANT') => setAssignmentType(value)}
+                >
+                  <SelectTrigger id="assignmentType">
+                    <SelectValue placeholder="Select assignment type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PRIMARY">Primary Teacher</SelectItem>
+                    <SelectItem value="ASSISTANT">Assistant Teacher</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                {isSubmitting ? 'Assigning...' : 'Assign Teacher'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Teacher Assignment Cards */}
+        {classData?.teachers?.map((teacherAssignment) => (
+          <Card key={teacherAssignment.id}>
+            <CardHeader>
+              <div className="flex justify-between">
+                <CardTitle>Teacher</CardTitle>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    // Implementation of remove teacher functionality
+                    console.log('Remove teacher:', teacherAssignment.id);
+                  }}
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  Remove
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="p-4 border rounded-md">
+                  <p className="font-medium text-lg">{teacherAssignment.teacher?.user?.name || 'Unnamed Teacher'}</p>
+                  <p className="text-sm text-muted-foreground">{teacherAssignment.teacher?.user?.email || 'No email'}</p>
+                  <p className="text-sm mt-2">
+                    <span className="font-medium">Status:</span> {teacherAssignment.status || 'Unknown'}
+                  </p>
+                  {teacherAssignment.teacher?.qualifications && Array.isArray(teacherAssignment.teacher.qualifications) && teacherAssignment.teacher.qualifications.length > 0 && (
+                    <p className="text-sm mt-1">
+                      <span className="font-medium">Qualifications:</span> {JSON.stringify(teacherAssignment.teacher.qualifications)}
+                    </p>
+                  )}
+                  {teacherAssignment.teacher?.specialization && (
+                    <p className="text-sm mt-1">
+                      <span className="font-medium">Specialization:</span> {teacherAssignment.teacher.specialization}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </PageLayout>
+  );
+}

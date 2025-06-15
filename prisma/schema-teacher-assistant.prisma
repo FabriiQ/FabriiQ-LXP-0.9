@@ -1,0 +1,75 @@
+// Teacher Assistant Schema Updates
+// These models should be added to the main prisma/schema.prisma file
+
+// Teacher Preference Model
+model TeacherPreference {
+  id            String       @id @default(cuid())
+  userId        String
+  category      String
+  key           String
+  value         Json
+  metadata      Json?
+  timestamp     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  status        SystemStatus @default(ACTIVE)
+  user          User         @relation(fields: [userId], references: [id])
+  
+  @@unique([userId, category, key])
+  @@index([userId])
+  @@index([category])
+  @@map("teacher_preferences")
+}
+
+// Teacher Assistant Interaction Model
+model TeacherAssistantInteraction {
+  id          String       @id @default(cuid())
+  teacherId   String
+  message     String       @db.Text
+  response    String       @db.Text
+  classId     String?
+  courseId    String?
+  metadata    Json?
+  timestamp   DateTime     @default(now())
+  status      SystemStatus @default(ACTIVE)
+  
+  @@index([teacherId])
+  @@index([classId])
+  @@index([timestamp])
+  @@map("teacher_assistant_interactions")
+}
+
+// Teacher Assistant Search Model
+model TeacherAssistantSearch {
+  id           String       @id @default(cuid())
+  teacherId    String
+  query        String
+  filters      Json?
+  resultsCount Int
+  timestamp    DateTime     @default(now())
+  status       SystemStatus @default(ACTIVE)
+  
+  @@index([teacherId])
+  @@index([timestamp])
+  @@map("teacher_assistant_searches")
+}
+
+// Agent Memory Model
+model AgentMemory {
+  id            String       @id @default(cuid())
+  agentId       String
+  userId        String
+  type          String       // Memory type (LONG_TERM, EPISODIC, etc.)
+  key           String
+  value         Json
+  metadata      Json?
+  timestamp     DateTime     @default(now())
+  expiresAt     DateTime?
+  status        SystemStatus @default(ACTIVE)
+  user          User         @relation(fields: [userId], references: [id])
+  
+  @@unique([userId, agentId, type, key])
+  @@index([agentId])
+  @@index([userId])
+  @@index([type])
+  @@map("agent_memories")
+}

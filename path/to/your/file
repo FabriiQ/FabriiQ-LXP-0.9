@@ -1,0 +1,17 @@
+const newProgram = await prisma.program.create({
+  data: {
+    name: "Early Childhood",
+    code: "EC-1",
+    type: "Test",
+    level: 1,
+    duration: 12,
+    status: "ACTIVE",
+    institutionId: "cm7s8vudf0000tal43od9yqod",
+    settings: {
+      allowConcurrentEnrollment: false,
+      requirePrerequisites: true,
+      gradingScheme: "STANDARD",
+      creditRequirements: 0
+    },
+  }
+}); 

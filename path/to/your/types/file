@@ -1,0 +1,1 @@
+type SystemStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED' | 'DRAFT'; 

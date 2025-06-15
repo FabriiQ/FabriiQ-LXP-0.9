@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "H5P Library Metadata",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "The title of the library"
+    },
+    "description": {
+      "type": "string",
+      "description": "The description of the library"
+    },
+    "contentType": {
+      "type": "string",
+      "description": "The content type of the library"
+    },
+    "icon": {
+      "type": "string",
+      "description": "The icon of the library"
+    }
+  }
+}

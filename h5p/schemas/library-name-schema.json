@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "H5P Library Name Schema",
+  "type": "object",
+  "required": [
+    "machineName",
+    "majorVersion",
+    "minorVersion"
+  ],
+  "properties": {
+    "machineName": {
+      "type": "string",
+      "description": "The machine name of the library"
+    },
+    "majorVersion": {
+      "type": "integer",
+      "description": "The major version of the library"
+    },
+    "minorVersion": {
+      "type": "integer",
+      "description": "The minor version of the library"
+    }
+  }
+}

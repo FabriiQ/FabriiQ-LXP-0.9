@@ -1,0 +1,336 @@
+// Bloom's Taxonomy, Rubrics, and Topic Mastery Schema Extension
+
+// Bloom's Taxonomy Level Enum
+enum BloomsTaxonomyLevel {
+  REMEMBER
+  UNDERSTAND
+  APPLY
+  ANALYZE
+  EVALUATE
+  CREATE
+}
+
+// Mastery Level Enum
+enum MasteryLevel {
+  NOVICE
+  DEVELOPING
+  PROFICIENT
+  ADVANCED
+  EXPERT
+}
+
+// Rubric Type Enum
+enum RubricType {
+  HOLISTIC
+  ANALYTIC
+}
+
+// Activity Type Enum
+enum ActivityType {
+  INDIVIDUAL
+  GROUP
+  DISCUSSION
+  PROJECT
+  PRESENTATION
+  GAME
+  SIMULATION
+  EXPERIMENT
+  REFLECTION
+  FIELD_TRIP
+}
+
+// Activity Setting Enum
+enum ActivitySetting {
+  IN_CLASS
+  ONLINE
+  HYBRID
+  HOMEWORK
+  FIELD
+}
+
+// Learning Outcome Model
+model LearningOutcome {
+  id                String              @id @default(cuid())
+  statement         String
+  description       String?
+  bloomsLevel       BloomsTaxonomyLevel
+  actionVerbs       String[]
+  subjectId         String
+  topicId           String?
+  createdById       String
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  hasCriteria       Boolean             @default(false)
+  criteria          Json?               // Stored as JSON for flexibility
+  performanceLevels Json?               // Default performance levels for criteria
+
+  subject           Subject             @relation(fields: [subjectId], references: [id])
+  topic             SubjectTopic?       @relation(fields: [topicId], references: [id])
+  createdBy         User                @relation(fields: [createdById], references: [id])
+
+  lessonPlans       LessonPlanOutcome[]
+  assessments       AssessmentOutcome[]
+  questions         Question[]
+  rubrics           RubricOutcome[]
+  activities        ActivityOutcome[]
+}
+
+// Rubric Model
+model Rubric {
+  id                String           @id @default(cuid())
+  title             String
+  description       String?
+  type              RubricType
+  maxScore          Float
+  bloomsDistribution Json?            // Distribution across Bloom's levels
+  createdById       String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  criteria          RubricCriteria[]
+  performanceLevels PerformanceLevel[]
+  learningOutcomes  RubricOutcome[]
+  assessments       Assessment[]
+  activities        Activity[]
+  createdBy         User             @relation(fields: [createdById], references: [id])
+}
+
+// Rubric Criteria Model
+model RubricCriteria {
+  id               String              @id @default(cuid())
+  name             String
+  description      String?
+  bloomsLevel      BloomsTaxonomyLevel
+  weight           Float
+  rubricId         String
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  rubric           Rubric              @relation(fields: [rubricId], references: [id], onDelete: Cascade)
+  criteriaLevels   CriteriaLevel[]
+}
+
+// Performance Level Model
+model PerformanceLevel {
+  id          String          @id @default(cuid())
+  name        String
+  description String?
+  minScore    Float
+  maxScore    Float
+  color       String?
+  rubricId    String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  rubric      Rubric          @relation(fields: [rubricId], references: [id], onDelete: Cascade)
+  criteriaLevels CriteriaLevel[]
+}
+
+// Criteria Level Model (Junction table)
+model CriteriaLevel {
+  id                String          @id @default(cuid())
+  description       String
+  score             Float
+  criteriaId        String
+  performanceLevelId String
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  criteria          RubricCriteria  @relation(fields: [criteriaId], references: [id], onDelete: Cascade)
+  performanceLevel  PerformanceLevel @relation(fields: [performanceLevelId], references: [id], onDelete: Cascade)
+
+  @@unique([criteriaId, performanceLevelId])
+}
+
+// Rubric Outcome Model (Junction table)
+model RubricOutcome {
+  rubricId         String
+  learningOutcomeId String
+  createdAt        DateTime        @default(now())
+
+  rubric           Rubric          @relation(fields: [rubricId], references: [id], onDelete: Cascade)
+  learningOutcome  LearningOutcome @relation(fields: [learningOutcomeId], references: [id], onDelete: Cascade)
+
+  @@id([rubricId, learningOutcomeId])
+}
+
+// Topic Mastery Model
+model TopicMastery {
+  id                String              @id @default(cuid())
+  studentId         String
+  topicId           String
+  subjectId         String
+  rememberLevel     Float               @default(0)
+  understandLevel   Float               @default(0)
+  applyLevel        Float               @default(0)
+  analyzeLevel      Float               @default(0)
+  evaluateLevel     Float               @default(0)
+  createLevel       Float               @default(0)
+  overallMastery    Float               @default(0)
+  lastAssessmentDate DateTime
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  student           User                @relation(fields: [studentId], references: [id])
+  topic             SubjectTopic        @relation(fields: [topicId], references: [id])
+  subject           Subject             @relation(fields: [subjectId], references: [id])
+  assessmentResults AssessmentResult[]
+
+  @@unique([studentId, topicId])
+}
+
+// Activity Template Model
+model ActivityTemplate {
+  id                String              @id @default(cuid())
+  title             String
+  description       String
+  type              ActivityType
+  setting           ActivitySetting
+  bloomsLevel       BloomsTaxonomyLevel
+  estimatedDuration Int
+  groupSize         Int?
+  materials         String[]
+  instructions      String
+  assessmentStrategy String?
+  differentiationAdvanced String?
+  differentiationStruggling String?
+  tags              String[]
+  subject           String?
+  gradeLevels       String[]
+  createdById       String
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  createdBy         User                @relation(fields: [createdById], references: [id])
+  activities        Activity[]
+}
+
+// Activity Model
+model Activity {
+  id                String              @id @default(cuid())
+  title             String
+  description       String
+  type              ActivityType
+  setting           ActivitySetting
+  bloomsLevel       BloomsTaxonomyLevel
+  duration          Int
+  groupSize         Int?
+  materials         String[]
+  instructions      String
+  templateId        String?
+  rubricId          String?
+  lessonPlanId      String?
+  subjectId         String
+  topicId           String?
+  classId           String
+  createdById       String
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  template          ActivityTemplate?   @relation(fields: [templateId], references: [id])
+  rubric            Rubric?             @relation(fields: [rubricId], references: [id])
+  lessonPlan        LessonPlan?         @relation(fields: [lessonPlanId], references: [id])
+  subject           Subject             @relation(fields: [subjectId], references: [id])
+  topic             SubjectTopic?       @relation(fields: [topicId], references: [id])
+  class             Class               @relation(fields: [classId], references: [id])
+  createdBy         User                @relation(fields: [createdById], references: [id])
+  learningOutcomes  ActivityOutcome[]
+}
+
+// Activity Outcome Model (Junction table)
+model ActivityOutcome {
+  activityId       String
+  learningOutcomeId String
+  createdAt        DateTime        @default(now())
+
+  activity         Activity        @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  learningOutcome  LearningOutcome @relation(fields: [learningOutcomeId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, learningOutcomeId])
+}
+
+// Lesson Plan Outcome Model (Junction table)
+model LessonPlanOutcome {
+  lessonPlanId     String
+  learningOutcomeId String
+  createdAt        DateTime        @default(now())
+
+  lessonPlan       LessonPlan      @relation(fields: [lessonPlanId], references: [id], onDelete: Cascade)
+  learningOutcome  LearningOutcome @relation(fields: [learningOutcomeId], references: [id], onDelete: Cascade)
+
+  @@id([lessonPlanId, learningOutcomeId])
+}
+
+// Assessment Outcome Model (Junction table)
+model AssessmentOutcome {
+  assessmentId     String
+  learningOutcomeId String
+  createdAt        DateTime        @default(now())
+
+  assessment       Assessment      @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  learningOutcome  LearningOutcome @relation(fields: [learningOutcomeId], references: [id], onDelete: Cascade)
+
+  @@id([assessmentId, learningOutcomeId])
+}
+
+// Extend existing models
+model Subject {
+  // Existing fields...
+
+  bloomsDistribution Json?   // Distribution across Bloom's levels
+  learningOutcomes   LearningOutcome[]
+  topicMasteries     TopicMastery[]
+}
+
+model SubjectTopic {
+  // Existing fields...
+
+  bloomsDistribution Json?   // Distribution across Bloom's levels
+  learningOutcomes   LearningOutcome[]
+  topicMasteries     TopicMastery[]
+  activities         Activity[]
+}
+
+model LessonPlan {
+  // Existing fields...
+
+  bloomsDistribution Json?   // Distribution across Bloom's levels
+  learningOutcomes   LessonPlanOutcome[]
+  activities         Activity[]
+}
+
+model Assessment {
+  // Existing fields...
+
+  bloomsDistribution Json?   // Distribution across Bloom's levels
+  rubricId           String?
+  rubric             Rubric?             @relation(fields: [rubricId], references: [id])
+  learningOutcomes   AssessmentOutcome[]
+  results            AssessmentResult[]
+}
+
+model Question {
+  // Existing fields...
+
+  bloomsLevel        BloomsTaxonomyLevel?
+  learningOutcomeIds String[]
+  learningOutcomes   LearningOutcome[]
+}
+
+model AssessmentResult {
+  // Existing fields...
+
+  bloomsLevelScores  Json?   // Scores by Bloom's level
+  topicMasteryId     String?
+  topicMastery       TopicMastery?       @relation(fields: [topicMasteryId], references: [id])
+}
+
+model User {
+  // Existing fields...
+
+  learningOutcomes   LearningOutcome[]
+  rubrics            Rubric[]
+  activityTemplates  ActivityTemplate[]
+  activities         Activity[]
+  topicMasteries     TopicMastery[]
+}

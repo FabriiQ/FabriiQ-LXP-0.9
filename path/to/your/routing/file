@@ -1,0 +1,6 @@
+// ... existing code ...
+// Ensure the route for the new assessment page is defined
+app.get('/new-assessment', (req, res) => {
+  res.render('NewAssessmentPage'); // Ensure the component is correctly referenced
+});
+// ... existing code ... 

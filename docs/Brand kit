@@ -1,0 +1,115 @@
+# Digital UI Brand Kit
+
+![Brand Header](https://hebbkx1anhila5yf.public.blob.vercel-storage.com/color-8YsUKfp17NPcsocgqkmcbQbSIN6TrE.png)
+
+## Table of Contents
+
+- [Introduction](#introduction)
+- [Brand Colors](#brand-colors)
+- [Typography](#typography)
+- [Spacing & Layout](#spacing--layout)
+- [UI Components](#ui-components)
+  - [Search Bars](#search-bars)
+  - [Cards](#cards)
+  - [Tags & Pills](#tags--pills)
+  - [Buttons](#buttons)
+  - [Numbered Sections](#numbered-sections)
+- [Implementation Guidelines](#implementation-guidelines)
+- [Accessibility Standards](#accessibility-standards)
+- [CSS Variables](#css-variables)
+- [Usage Examples](#usage-examples)
+
+## Introduction
+
+This brand kit defines the visual language and UI components for our digital products. It ensures consistency across all platforms and provides developers and designers with the necessary tools to create cohesive user experiences.
+
+## Brand Colors
+
+### Primary Colors
+
+| Color | Hex Code | RGB | Usage |
+|-------|----------|-----|-------|
+| Primary Green | #1F504B | rgb(31, 80, 75) | Primary actions, headers, key UI elements |
+| Medium Teal | #5A8A84 | rgb(90, 138, 132) | Secondary elements, hover states |
+| Light Mint | #D8E3E0 | rgb(216, 227, 224) | Backgrounds, cards, subtle highlights |
+
+### Neutral Colors
+
+| Color | Hex Code | RGB | Usage |
+|-------|----------|-----|-------|
+| White | #FFFFFF | rgb(255, 255, 255) | Backgrounds, cards, text on dark colors |
+| Light Gray | #F5F5F5 | rgb(245, 245, 245) | Backgrounds, disabled states |
+| Medium Gray | #E0E0E0 | rgb(224, 224, 224) | Borders, dividers |
+| Dark Gray | #757575 | rgb(117, 117, 117) | Secondary text |
+| Black | #212121 | rgb(33, 33, 33) | Primary text |
+
+### State Colors
+
+| Color | Hex Code | RGB | Usage |
+|-------|----------|-----|-------|
+| Red | #D92632 | rgb(217, 38, 50) | Error states, critical actions |
+| Orange | #FF9852 | rgb(255, 152, 82) | Notifications, attention |
+| Purple | #6126AE | rgb(97, 38, 174) | Premium features |
+| Dark Blue | #004EB2 | rgb(0, 78, 178) | Links, interactive elements |
+| Light Blue | #2F96F4 | rgb(47, 150, 244) | Secondary actions |
+
+## Typography
+
+### Font Family
+
+**Inter** is our primary typeface with various weights used throughout the interface.
+
+| Weight | Usage | Example |
+|--------|-------|---------|
+| Inter SemiBold (600) | Headings, buttons, emphasis | **Inter SemiBold** |
+| Inter Medium (500) | Subheadings, important text | **Inter Medium** |
+| Inter Regular (400) | Body text, general content | Inter Regular |
+| Inter Light (300) | Subtle text, captions | Inter Light |
+
+### Font Sizes
+
+| Element | Size | Line Height | Weight | Usage |
+|---------|------|-------------|--------|-------|
+| H1 | 48px | 56px | SemiBold | Main page headings |
+| H2 | 36px | 44px | SemiBold | Section headings |
+| H3 | 24px | 32px | SemiBold | Subsection headings |
+| H4 | 20px | 28px | SemiBold | Card headings |
+| Body Large | 18px | 28px | Regular | Featured content |
+| Body | 16px | 24px | Regular | Main content |
+| Body Small | 14px | 20px | Regular | Secondary content |
+| Caption | 12px | 16px | Regular | Labels, metadata |
+
+## Spacing & Layout
+
+### Spacing Scale
+
+| Size | Value | Usage |
+|------|-------|-------|
+| xs | 4px | Minimal spacing, icons |
+| sm | 8px | Tight spacing, compact elements |
+| md | 16px | Standard spacing, most elements |
+| lg | 24px | Generous spacing, section separation |
+| xl | 32px | Major section separation |
+| xxl | 48px | Page section separation |
+
+### Container Widths
+
+| Size | Width | Usage |
+|------|-------|-------|
+| Small | 640px | Focused content, forms |
+| Medium | 960px | Standard content |
+| Large | 1280px | Full-width content |
+
+### Border Radius
+
+| Size | Value | Usage |
+|------|-------|-------|
+| Small | 4px | Buttons, input fields |
+| Medium | 8px | Cards, modals |
+| Large | 12px | Featured elements |
+| Round | 50% | Avatars, circular elements |
+
+## UI Components
+
+### Search Bars
+

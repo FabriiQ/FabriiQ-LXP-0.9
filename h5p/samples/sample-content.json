@@ -1,0 +1,55 @@
+{
+  "title": "Sample H5P Content",
+  "language": "en",
+  "mainLibrary": "H5P.Accordion",
+  "embedTypes": ["div"],
+  "license": "U",
+  "metadata": {
+    "title": "Sample H5P Content",
+    "authors": [
+      {
+        "name": "LXP System",
+        "role": "Author"
+      }
+    ],
+    "license": "U",
+    "licenseVersion": "4.0",
+    "licenseExtras": "This content is provided as a sample for testing purposes.",
+    "changes": [
+      {
+        "date": "2023-01-01",
+        "author": "System",
+        "log": "Created"
+      }
+    ],
+    "contentType": "Accordion"
+  },
+  "preloadedDependencies": [
+    {
+      "machineName": "H5P.Accordion",
+      "majorVersion": 1,
+      "minorVersion": 0
+    },
+    {
+      "machineName": "H5P.FontIcons",
+      "majorVersion": 1,
+      "minorVersion": 0
+    }
+  ],
+  "content": {
+    "panels": [
+      {
+        "title": "Welcome to H5P",
+        "content": "<p>H5P makes it easy to create, share and reuse HTML5 content and applications.</p>"
+      },
+      {
+        "title": "Getting Started",
+        "content": "<p>To get started with H5P, you need to:</p><ol><li>Install H5P libraries</li><li>Create H5P content</li><li>Use the content in your activities</li></ol>"
+      },
+      {
+        "title": "Need Help?",
+        "content": "<p>If you need help with H5P, check out the <a href='https://h5p.org/documentation'>H5P documentation</a>.</p>"
+      }
+    ]
+  }
+}

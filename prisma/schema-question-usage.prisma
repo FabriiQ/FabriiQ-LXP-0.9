@@ -1,0 +1,79 @@
+// Question Usage Models
+// These models should be added to the main prisma/schema.prisma file
+
+// Track individual question usage instances
+model QuestionUsageInstance {
+  id            String    @id @default(cuid())
+  questionId    String
+  activityId    String
+  studentId     String
+  classId       String?
+  wasCorrect    Boolean
+  timeToAnswer  Float     // Time in seconds
+  answeredAt    DateTime  @default(now())
+  
+  // Relations
+  question      Question  @relation(fields: [questionId], references: [id])
+  activity      Activity  @relation(fields: [activityId], references: [id])
+  student       User      @relation(fields: [studentId], references: [id])
+  class         Class?    @relation(fields: [classId], references: [id])
+  
+  // Indexes
+  @@index([questionId])
+  @@index([activityId])
+  @@index([studentId])
+  @@index([classId])
+  @@index([answeredAt])
+  @@map("question_usage_instances")
+}
+
+// Track question usage by class
+model QuestionClassUsage {
+  id              String    @id @default(cuid())
+  questionId      String
+  classId         String
+  usageCount      Int       @default(0)
+  correctCount    Int       @default(0)
+  incorrectCount  Int       @default(0)
+  lastUsedAt      DateTime  @default(now())
+  
+  // Relations
+  question        Question  @relation(fields: [questionId], references: [id])
+  class           Class     @relation(fields: [classId], references: [id])
+  
+  // Unique constraint
+  @@unique([questionId, classId], name: "questionId_classId")
+  
+  // Indexes
+  @@index([questionId])
+  @@index([classId])
+  @@index([usageCount])
+  @@map("question_class_usage")
+}
+
+// Track question usage by activity within a class
+model QuestionActivityUsage {
+  id              String    @id @default(cuid())
+  questionId      String
+  activityId      String
+  classId         String
+  activityTitle   String
+  usageCount      Int       @default(0)
+  correctCount    Int       @default(0)
+  incorrectCount  Int       @default(0)
+  lastUsedAt      DateTime  @default(now())
+  
+  // Relations
+  question        Question  @relation(fields: [questionId], references: [id])
+  activity        Activity  @relation(fields: [activityId], references: [id])
+  class           Class     @relation(fields: [classId], references: [id])
+  
+  // Unique constraint
+  @@unique([questionId, activityId, classId], name: "questionId_activityId_classId")
+  
+  // Indexes
+  @@index([questionId])
+  @@index([activityId])
+  @@index([classId])
+  @@map("question_activity_usage")
+}

@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "H5P Library Metadata",
+  "type": "object",
+  "required": [
+    "machineName",
+    "majorVersion",
+    "minorVersion",
+    "patchVersion"
+  ],
+  "properties": {
+    "machineName": {
+      "type": "string",
+      "description": "The machine name of the library"
+    },
+    "majorVersion": {
+      "type": "integer",
+      "description": "The major version of the library"
+    },
+    "minorVersion": {
+      "type": "integer",
+      "description": "The minor version of the library"
+    },
+    "patchVersion": {
+      "type": "integer",
+      "description": "The patch version of the library"
+    },
+    "runnable": {
+      "type": "boolean",
+      "description": "Whether the library is runnable"
+    },
+    "preloadedJs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "preloadedCss": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

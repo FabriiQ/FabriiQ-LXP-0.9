@@ -1,0 +1,14 @@
+const subjectRouter = createRouter()
+  // Ensure the getAll procedure is defined
+  .query('getAll', {
+    input: z.object({
+      username: z.string().nonempty().optional(), // Make optional if needed
+      userType: z.enum(['SYSTEM_ADMIN', 'SYSTEM_MANAGER', 'CAMPUS_ADMIN', 'CAMPUS_COORDINATOR', 'CAMPUS_TEACHER', 'CAMPUS_STUDENT', 'CAMPUS_PARENT']).optional(),
+      accessScope: z.enum(['SYSTEM', 'MULTI_CAMPUS', 'SINGLE_CAMPUS']).optional(),
+      institutionId: z.string().nonempty().optional(),
+    }),
+    resolve({ input }) {
+      // Logic to fetch all subjects
+      // Handle cases where input fields are undefined
+    },
+  }); 

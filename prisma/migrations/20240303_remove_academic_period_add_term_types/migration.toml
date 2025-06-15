@@ -1,0 +1,10 @@
+# Migration: Remove AcademicPeriod and Add Term Types
+# Description: This migration removes the AcademicPeriod model and adds TermType and TermPeriod enums to the Term model
+
+# Dependency: None
+dependency = []
+
+[migration]
+name = "remove_academic_period_add_term_types"
+provider = "postgresql"
+created_at = "2024-03-03T00:00:00Z" 

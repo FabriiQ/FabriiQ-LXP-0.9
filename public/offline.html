@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - Learning Portal</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f9fafb;
+            color: #111827;
+        }
+        .container {
+            max-width: 500px;
+            padding: 2rem;
+            text-align: center;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        p {
+            color: #6b7280;
+            margin-bottom: 1.5rem;
+        }
+        .icon {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 1.5rem;
+            color: #4f46e5;
+        }
+        .button {
+            display: inline-block;
+            background-color: #4f46e5;
+            color: white;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+        .button:hover {
+            background-color: #4338ca;
+        }
+        .cached-pages {
+            margin-top: 2rem;
+            text-align: left;
+        }
+        .cached-pages h2 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .cached-pages ul {
+            padding-left: 1.5rem;
+            color: #6b7280;
+        }
+        .cached-pages li {
+            margin-bottom: 0.5rem;
+        }
+        .cached-pages a {
+            color: #4f46e5;
+            text-decoration: none;
+        }
+        .cached-pages a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 8.5V6.75m0 0l-2-2m2 2l2-2" />
+        </svg>
+        <h1>You're offline</h1>
+        <p>It looks like you're not connected to the internet. Some features may not be available while offline.</p>
+        <p>Your previously loaded data is still accessible, and any changes you make will be synchronized when you're back online.</p>
+        <button id="reload-button" class="button">Try again</button>
+
+        <div class="cached-pages">
+            <h2>Available Offline Pages:</h2>
+            <ul id="cached-pages-list">
+                <li><a href="/student/dashboard">Student Dashboard</a></li>
+                <li><a href="/admin/coordinator">Coordinator Dashboard</a></li>
+            </ul>
+        </div>
+    </div>
+    <script>
+        // Check if we're back online
+        window.addEventListener('online', () => {
+            document.getElementById('reload-button').textContent = 'Connected! Click to reload';
+        });
+
+        // Try to reload when the user clicks the button
+        document.getElementById('reload-button').addEventListener('click', () => {
+            window.location.reload();
+        });
+
+        // Determine which portal the user was trying to access
+        const path = window.location.pathname;
+        if (path.includes('/admin/coordinator')) {
+            document.getElementById('cached-pages-list').innerHTML = `
+                <li><a href="/admin/coordinator">Coordinator Dashboard</a></li>
+                <li><a href="/admin/coordinator/dashboard">Coordinator Main Dashboard</a></li>
+            `;
+        } else if (path.includes('/teacher')) {
+            document.getElementById('cached-pages-list').innerHTML = `
+                <li><a href="/teacher/dashboard">Teacher Dashboard</a></li>
+                <li><a href="/teacher/classes">Teacher Classes</a></li>
+            `;
+        } else {
+            document.getElementById('cached-pages-list').innerHTML = `
+                <li><a href="/student/dashboard">Student Dashboard</a></li>
+                <li><a href="/student/activities">Student Activities</a></li>
+            `;
+        }
+    </script>
+</body>
+</html>

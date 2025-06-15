@@ -1,0 +1,1 @@
+export type TimeValue = string; // Format: "HH:mm" 

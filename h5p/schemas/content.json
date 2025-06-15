@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "H5P Content",
+  "type": "object",
+  "properties": {
+    "params": {
+      "type": "object",
+      "description": "The content parameters"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "The content metadata"
+    }
+  }
+}

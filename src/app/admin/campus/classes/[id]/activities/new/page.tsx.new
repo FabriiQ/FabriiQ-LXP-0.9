@@ -1,0 +1,596 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { PageLayout } from '@/components/layout/page-layout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/data-display/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/forms/select';
+import { Input } from '@/components/ui/forms/input';
+import { Switch } from '@/components/ui/forms/switch';
+import { ArrowLeft, AlertCircle, HelpCircle } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { api } from '@/trpc/react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { activityRegistry } from '@/features/activities';
+import { ActivityPurpose, LearningActivityType, AssessmentType } from '@/server/api/constants';
+import ClientOnly from '@/components/client-only';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/feedback/alert';
+import { H5PDiagnostics } from '@/components/h5p/H5PDiagnostics';
+
+// Create a form schema
+const createActivitySchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  purpose: z.nativeEnum(ActivityPurpose),
+  learningType: z.nativeEnum(LearningActivityType).optional(),
+  assessmentType: z.nativeEnum(AssessmentType).optional(),
+  subjectId: z.string().min(1, 'Subject is required'),
+  topicId: z.string().optional(),
+  isGradable: z.boolean().default(false),
+  maxScore: z.number().optional(),
+  passingScore: z.number().optional(),
+  weightage: z.number().optional(),
+  activityType: z.string().min(1, 'Activity type is required'),
+});
+
+type FormData = z.infer<typeof createActivitySchema>;
+
+interface Subject {
+  id: string;
+  name: string;
+}
+
+export default function NewActivityPage() {
+  const params = useParams();
+  const router = useRouter();
+  const { toast } = useToast();
+  const classId = params?.id as string;
+
+  const [activityConfig, setActivityConfig] = useState<Record<string, any>>({});
+  const [showH5PDiagnostics, setShowH5PDiagnostics] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<FormData>({
+    resolver: zodResolver(createActivitySchema),
+    defaultValues: {
+      purpose: ActivityPurpose.LEARNING,
+      isGradable: false,
+    },
+  });
+
+  const { data: subjects, isLoading: loadingSubjects, error: subjectsError } = api.class.getSubjects.useQuery({
+    classId,
+  }, {
+    retry: 3,
+    retryDelay: 1000,
+    onError: (error) => {
+      console.error('Error fetching subjects:', error);
+    }
+  });
+
+  const selectedSubjectId = watch('subjectId');
+  const { data: topics, isLoading: loadingTopics, error: topicsError } = api.subject.getTopics.useQuery({
+    subjectId: selectedSubjectId,
+  }, {
+    enabled: !!selectedSubjectId,
+    retry: 3,
+    retryDelay: 1000,
+    onError: (error) => {
+      console.error('Error fetching topics:', error);
+    }
+  });
+  
+  // Check if there are any API errors to display
+  const [apiError, setApiError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (subjectsError) {
+      setApiError(`Error loading subjects: ${subjectsError.message}`);
+    } else if (topicsError) {
+      setApiError(`Error loading topics: ${topicsError.message}`);
+    } else {
+      setApiError(null);
+    }
+  }, [subjectsError, topicsError]);
+
+  const createActivity = api.activity.create.useMutation({
+    onSuccess: () => {
+      toast({
+        title: 'Activity Created',
+        description: 'The activity has been created successfully',
+        variant: 'success',
+      });
+      router.push(`/admin/campus/classes/${classId}/activities`);
+    },
+    onError: (error) => {
+      console.error('Activity creation error:', error);
+      
+      // Extract more detailed error information
+      let errorMessage = error.message;
+      if (error.data?.zodError) {
+        const fieldErrors = error.data.zodError.fieldErrors;
+        const formErrors = error.data.zodError.formErrors;
+        
+        if (Object.keys(fieldErrors).length > 0) {
+          errorMessage = `Validation error: ${Object.entries(fieldErrors)
+            .map(([field, errors]) => `${field}: ${errors?.[0]}`)
+            .join(', ')}`;
+        } else if (formErrors.length > 0) {
+          errorMessage = `Form error: ${formErrors[0]}`;
+        }
+      }
+      
+      toast({
+        title: 'Error Creating Activity',
+        description: errorMessage,
+        variant: 'error',
+      });
+    },
+  });
+
+  const purpose = watch('purpose');
+  const activityType = watch('activityType');
+  const isGradable = watch('isGradable');
+
+  // Get available activity types based on purpose
+  const availableActivityTypes = activityRegistry.getByCategory(purpose);
+
+  // Selected activity type definition
+  const selectedActivityTypeDef = activityType ? activityRegistry.get(activityType) : null;
+
+  // Handle purpose change
+  const handlePurposeChange = (value: ActivityPurpose) => {
+    setValue('purpose', value);
+    setValue('activityType', ''); // Reset activity type when purpose changes
+    setActivityConfig({});
+  };
+
+  // Handle activity type change
+  const handleActivityTypeChange = (value: string) => {
+    setValue('activityType', value);
+    const typeDef = activityRegistry.get(value);
+    if (typeDef) {
+      setActivityConfig(typeDef.defaultConfig);
+      setValue('isGradable', typeDef.capabilities.isGradable);
+    }
+  };
+
+  const onSubmit = async (data: FormData) => {
+    try {
+      // Validate required fields based on purpose
+      if (data.purpose === ActivityPurpose.LEARNING && !data.learningType) {
+        toast({
+          title: 'Validation Error',
+          description: 'Learning type is required for learning activities',
+          variant: 'error',
+        });
+        return;
+      }
+
+      if ((data.purpose === ActivityPurpose.ASSESSMENT || data.purpose === ActivityPurpose.PRACTICE) && !data.assessmentType) {
+        toast({
+          title: 'Validation Error',
+          description: 'Assessment type is required for assessment or practice activities',
+          variant: 'error',
+        });
+        return;
+      }
+
+      // Validate H5P specific requirements if H5P activity type is selected
+      if (data.activityType === 'h5p') {
+        const h5pConfig = activityConfig as any;
+        if (!h5pConfig.contentId) {
+          toast({
+            title: 'Validation Error',
+            description: 'H5P content must be selected or created',
+            variant: 'error',
+          });
+          return;
+        }
+      }
+
+      // Create structured content with type assertion to avoid TypeScript errors
+      const metadata = {
+        objectives: [] as any[],
+        prerequisites: [] as any[],
+        estimatedDuration: 0,
+        difficultyLevel: 'intermediate',
+        tags: [] as string[],
+      };
+      
+      const analytics = {
+        trackViews: true,
+        trackInteractions: true,
+        trackCompletion: false,
+      };
+      
+      const content = {
+        version: 1,
+        activityType: data.activityType,
+        settings: {} as Record<string, any>,
+        metadata,
+        analytics,
+        ...activityConfig
+      };
+
+      // Log submission data for debugging
+      const contentSummary = {
+        activityType: data.activityType,
+        ...Object.entries(activityConfig).reduce((acc, [key, value]) => {
+          acc[key] = typeof value === 'object' ? '[Object]' : value;
+          return acc;
+        }, {} as Record<string, any>)
+      };
+      
+      // Log submission data
+      const submissionData = {
+        title: data.title,
+        purpose: data.purpose,
+        learningType: data.purpose === ActivityPurpose.LEARNING ? data.learningType : undefined,
+        assessmentType: (data.purpose === ActivityPurpose.ASSESSMENT || data.purpose === ActivityPurpose.PRACTICE) ? data.assessmentType : undefined,
+        subjectId: data.subjectId,
+        topicId: data.topicId,
+        classId,
+        contentSummary,
+        isGradable: data.isGradable,
+        maxScore: data.maxScore,
+        passingScore: data.passingScore,
+        weightage: data.weightage,
+      };
+      
+      console.log('Submitting activity with data:', submissionData);
+
+      createActivity.mutate({
+        title: data.title,
+        purpose: data.purpose,
+        learningType: data.purpose === ActivityPurpose.LEARNING ? data.learningType : undefined,
+        assessmentType: (data.purpose === ActivityPurpose.ASSESSMENT || data.purpose === ActivityPurpose.PRACTICE) ? data.assessmentType : undefined,
+        subjectId: data.subjectId,
+        topicId: data.topicId,
+        classId,
+        content,
+        isGradable: data.isGradable,
+        maxScore: data.maxScore,
+        passingScore: data.passingScore,
+        weightage: data.weightage,
+        useComponentSystem: true,
+      });
+    } catch (error) {
+      console.error('Error in form submission:', error);
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred while creating the activity',
+        variant: 'error',
+      });
+    }
+  };
+
+  return (
+    <PageLayout title="Create New Activity">
+      <div className="flex items-center mb-6">
+        <Link href={`/admin/campus/classes/${classId}/activities`} className="mr-4">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Activities
+          </Button>
+        </Link>
+        <h1 className="text-2xl font-bold">New Activity</h1>
+      </div>
+
+      {apiError && (
+        <Alert className="mb-6 bg-red-50 border-red-200">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertTitle className="text-red-600">Error</AlertTitle>
+          <AlertDescription>{apiError}</AlertDescription>
+        </Alert>
+      )}
+
+      {createActivity.error && (
+        <Alert className="mb-6 bg-red-50 border-red-200">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertTitle className="text-red-600">Error Creating Activity</AlertTitle>
+          <AlertDescription>{createActivity.error.message}</AlertDescription>
+        </Alert>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Create New Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Title</label>
+              <Input {...register('title')} placeholder="Enter activity title" />
+              {errors.title && (
+                <p className="text-sm text-destructive">{errors.title.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Purpose</label>
+              <Select
+                value={purpose}
+                onValueChange={(value) => handlePurposeChange(value as ActivityPurpose)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select purpose" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ActivityPurpose.LEARNING}>Learning</SelectItem>
+                  <SelectItem value={ActivityPurpose.ASSESSMENT}>Assessment</SelectItem>
+                  <SelectItem value={ActivityPurpose.PRACTICE}>Practice</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.purpose && (
+                <p className="text-sm text-destructive">{errors.purpose.message}</p>
+              )}
+            </div>
+
+            {purpose === ActivityPurpose.LEARNING && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Learning Type</label>
+                <Select
+                  defaultValue=""
+                  {...register('learningType')}
+                  onValueChange={(value) => setValue('learningType', value as LearningActivityType)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select learning type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(LearningActivityType).map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type.replace(/_/g, ' ')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.learningType && (
+                  <p className="text-sm text-destructive">{errors.learningType.message}</p>
+                )}
+              </div>
+            )}
+
+            {(purpose === ActivityPurpose.ASSESSMENT || purpose === ActivityPurpose.PRACTICE) && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Assessment Type</label>
+                <Select
+                  defaultValue=""
+                  {...register('assessmentType')}
+                  onValueChange={(value) => setValue('assessmentType', value as AssessmentType)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select assessment type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.values(AssessmentType).map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type.replace(/_/g, ' ')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.assessmentType && (
+                  <p className="text-sm text-destructive">{errors.assessmentType.message}</p>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Subject</label>
+              <Select
+                value={selectedSubjectId}
+                onValueChange={(value) => setValue('subjectId', value)}
+                disabled={loadingSubjects}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects && subjects.length > 0 ? (
+                    subjects.map((subject: Subject) => (
+                      <SelectItem key={subject.id} value={subject.id}>
+                        {subject.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-subjects" disabled>
+                      {loadingSubjects ? 'Loading subjects...' : 'No subjects found'}
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {errors.subjectId && (
+                <p className="text-sm text-destructive">{errors.subjectId.message}</p>
+              )}
+            </div>
+
+            {selectedSubjectId && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Topic (Optional)</label>
+                <Select
+                  value={watch('topicId') || ''}
+                  onValueChange={(value) => setValue('topicId', value)}
+                  disabled={loadingTopics}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select topic" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {topics?.map((topic) => (
+                      <SelectItem key={topic.id} value={topic.id}>
+                        {topic.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.topicId && (
+                  <p className="text-sm text-destructive">{errors.topicId.message}</p>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Activity Type</label>
+              <Select
+                value={activityType}
+                onValueChange={handleActivityTypeChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select activity type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableActivityTypes && availableActivityTypes.length > 0 ? (
+                    availableActivityTypes.map((type) => (
+                      <SelectItem key={type.id} value={type.id}>
+                        {type.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-activity-types" disabled>
+                      No activity types available for this purpose
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              {errors.activityType && (
+                <p className="text-sm text-destructive">{errors.activityType.message}</p>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="isGradable"
+                checked={isGradable}
+                onCheckedChange={(checked) => setValue('isGradable', checked)}
+              />
+              <label htmlFor="isGradable" className="text-sm font-medium">
+                Is Gradable
+              </label>
+            </div>
+
+            {isGradable && (
+              <div className="space-y-6 p-4 border rounded-md">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Max Score</label>
+                  <Input
+                    type="number"
+                    {...register('maxScore', { valueAsNumber: true })}
+                  />
+                  {errors.maxScore && (
+                    <p className="text-sm text-destructive">{errors.maxScore.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Passing Score</label>
+                  <Input
+                    type="number"
+                    {...register('passingScore', { valueAsNumber: true })}
+                  />
+                  {errors.passingScore && (
+                    <p className="text-sm text-destructive">{errors.passingScore.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Weightage (%)</label>
+                  <Input
+                    type="number"
+                    {...register('weightage', { valueAsNumber: true })}
+                  />
+                  {errors.weightage && (
+                    <p className="text-sm text-destructive">{errors.weightage.message}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {selectedActivityTypeDef && (
+              <div className="border rounded-lg p-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-medium">{selectedActivityTypeDef.name} Configuration</h3>
+                  {activityType === 'h5p' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowH5PDiagnostics(true)}
+                      className="flex items-center gap-1"
+                    >
+                      <HelpCircle className="h-4 w-4" />
+                      H5P Diagnostics
+                    </Button>
+                  )}
+                </div>
+                <ClientOnly fallback={<div className="p-4 text-center">Loading editor...</div>}>
+                  <selectedActivityTypeDef.components.editor
+                    config={activityConfig}
+                    onChange={setActivityConfig}
+                  />
+                </ClientOnly>
+
+                {activityType === 'h5p' && createActivity.error && (
+                  <Alert className="mt-4 bg-amber-50 border-amber-200">
+                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                    <AlertTitle className="text-amber-600">H5P Integration Issue</AlertTitle>
+                    <AlertDescription>
+                      There might be an issue with the H5P integration. Click the "H5P Diagnostics" button above to check the system status.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-4">
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => router.back()}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting || !selectedActivityTypeDef || createActivity.isLoading}
+              >
+                {isSubmitting || createActivity.isLoading ? 'Creating...' : 'Create Activity'}
+              </Button>
+              {createActivity.error && (
+                <p className="text-sm text-destructive mt-2">
+                  Error: {createActivity.error.message}
+                </p>
+              )}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+      
+      {/* H5P Diagnostics Modal */}
+      {showH5PDiagnostics && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">H5P System Diagnostics</h2>
+              <Button variant="ghost" size="sm" onClick={() => setShowH5PDiagnostics(false)}>
+                <span className="sr-only">Close</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </Button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">Check the status of your H5P integration to troubleshoot issues.</p>
+            <H5PDiagnostics onClose={() => setShowH5PDiagnostics(false)} />
+          </div>
+        </div>
+      )}
+    </PageLayout>
+  );
+}

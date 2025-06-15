@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "H5P metadata",
+  "type": "object",
+  "required": ["title", "mainLibrary", "language", "preloadedDependencies"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "The human readable title of the content"
+    },
+    "mainLibrary": {
+      "type": "string",
+      "description": "The main library of the content (e.g. H5P.MultiChoice-1.0)"
+    },
+    "language": {
+      "type": "string",
+      "description": "The language code of the content (e.g. 'en')"
+    },
+    "preloadedDependencies": {
+      "type": "array",
+      "description": "The libraries that the content depends on",
+      "items": {
+        "type": "object",
+        "required": ["machineName", "majorVersion", "minorVersion"],
+        "properties": {
+          "machineName": {
+            "type": "string",
+            "description": "The machine name of the library (e.g. H5P.MultiChoice)"
+          },
+          "majorVersion": {
+            "type": "integer",
+            "description": "The major version of the library"
+          },
+          "minorVersion": {
+            "type": "integer",
+            "description": "The minor version of the library"
+          }
+        }
+      }
+    },
+    "metaData": {
+      "type": "object",
+      "description": "Metadata about the content",
+      "properties": {
+        "license": {
+          "type": "string",
+          "description": "The license of the content"
+        },
+        "authors": {
+          "type": "array",
+          "description": "The authors of the content",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "The name of the author"
+              },
+              "role": {
+                "type": "string",
+                "description": "The role of the author"
+              }
+            }
+          }
+        },
+        "changes": {
+          "type": "array",
+          "description": "Changes made to the content",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string",
+                "description": "The date of the change"
+              },
+              "author": {
+                "type": "string",
+                "description": "The author of the change"
+              },
+              "log": {
+                "type": "string",
+                "description": "The log message of the change"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,333 @@
+// Student Achievement model
+model StudentAchievement {
+  id              String       @id @default(cuid())
+  studentId       String
+  student         StudentProfile @relation(fields: [studentId], references: [id])
+  title           String
+  description     String
+  type            String       // e.g., "class", "subject", "login", "streak"
+  classId         String?
+  class           Class?       @relation(fields: [classId], references: [id])
+  subjectId       String?
+  subject         Subject?     @relation(fields: [subjectId], references: [id])
+  progress        Int          @default(0)
+  total           Int
+  unlocked        Boolean      @default(false)
+  unlockedAt      DateTime?
+  icon            String?      // Icon identifier
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  status          SystemStatus @default(ACTIVE)
+
+  @@index([studentId])
+  @@index([classId])
+  @@index([subjectId])
+  @@index([type])
+  @@map("student_achievements")
+}
+
+// Student Points model
+model StudentPoints {
+  id              String       @id @default(cuid())
+  studentId       String
+  student         StudentProfile @relation(fields: [studentId], references: [id])
+  amount          Int
+  source          String       // e.g., "activity", "login", "bonus"
+  sourceId        String?      // ID of the source (activity ID, etc.)
+  classId         String?
+  class           Class?       @relation(fields: [classId], references: [id])
+  subjectId       String?
+  subject         Subject?     @relation(fields: [subjectId], references: [id])
+  description     String?
+  createdAt       DateTime     @default(now())
+  status          SystemStatus @default(ACTIVE)
+
+  @@index([studentId])
+  @@index([classId])
+  @@index([subjectId])
+  @@index([source])
+  @@map("student_points")
+}
+
+// Student Level model
+model StudentLevel {
+  id              String       @id @default(cuid())
+  studentId       String
+  student         StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  level           Int          @default(1)
+  currentExp      Int          @default(0)
+  nextLevelExp    Int          @default(100)
+  classId         String?
+  class           Class?       @relation(fields: [classId], references: [id])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  status          SystemStatus @default(ACTIVE)
+
+  @@unique([studentId, classId])
+  @@index([studentId])
+  @@index([classId])
+  @@map("student_levels")
+}
+
+// Leaderboard snapshot model for historical data
+model LeaderboardSnapshot {
+  id              String       @id @default(cuid())
+  type            String       // CLASS, SUBJECT, COURSE, OVERALL
+  referenceId     String       // classId, subjectId, courseId, or campusId
+  snapshotDate    DateTime     @default(now())
+  entries         Json         // Array of leaderboard entries
+  metadata        Json?        // Additional metadata
+  createdAt       DateTime     @default(now())
+  status          SystemStatus @default(ACTIVE)
+
+  @@index([type, referenceId])
+  @@index([snapshotDate])
+  @@map("leaderboard_snapshots")
+}
+
+// Daily student points aggregation for efficient leaderboard calculation
+model StudentPointsAggregate {
+  id              String       @id @default(cuid())
+  studentId       String
+  student         StudentProfile @relation(fields: [studentId], references: [id])
+  classId         String?
+  class           Class?       @relation(fields: [classId], references: [id])
+  subjectId       String?
+  subject         Subject?     @relation(fields: [subjectId], references: [id])
+  courseId        String?
+  campusId        String?
+  date            DateTime
+  dailyPoints     Int          @default(0)
+  weeklyPoints    Int          @default(0)
+  monthlyPoints   Int          @default(0)
+  termPoints      Int          @default(0)
+  totalPoints     Int          @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([studentId, classId, subjectId, date])
+  @@index([studentId])
+  @@index([classId])
+  @@index([subjectId])
+  @@index([date])
+  @@map("student_points_aggregates")
+}
+
+// Teacher Achievement model
+model TeacherAchievement {
+  id              String       @id @default(cuid())
+  teacherId       String
+  teacher         TeacherProfile @relation(fields: [teacherId], references: [id])
+  title           String
+  description     String
+  type            String       // e.g., "class", "subject", "activity_creation", "feedback"
+  classId         String?
+  class           Class?       @relation(fields: [classId], references: [id])
+  subjectId       String?
+  subject         Subject?     @relation(fields: [subjectId], references: [id])
+  progress        Int          @default(0)
+  total           Int
+  unlocked        Boolean      @default(false)
+  unlockedAt      DateTime?
+  icon            String?      // Icon identifier
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  status          SystemStatus @default(ACTIVE)
+
+  @@index([teacherId])
+  @@index([classId])
+  @@index([subjectId])
+  @@index([type])
+  @@map("teacher_achievements")
+}
+
+// Teacher Points model
+model TeacherPoints {
+  id              String       @id @default(cuid())
+  teacherId       String
+  teacher         TeacherProfile @relation(fields: [teacherId], references: [id])
+  amount          Int
+  source          String       // e.g., "activity_creation", "feedback", "attendance", "student_performance"
+  sourceId        String?      // ID of the source (activity ID, etc.)
+  classId         String?
+  class           Class?       @relation(fields: [classId], references: [id])
+  subjectId       String?
+  subject         Subject?     @relation(fields: [subjectId], references: [id])
+  description     String?
+  createdAt       DateTime     @default(now())
+  status          SystemStatus @default(ACTIVE)
+
+  @@index([teacherId])
+  @@index([classId])
+  @@index([subjectId])
+  @@index([source])
+  @@map("teacher_points")
+}
+
+// Teacher Level model
+model TeacherLevel {
+  id              String       @id @default(cuid())
+  teacherId       String
+  teacher         TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  level           Int          @default(1)
+  currentExp      Int          @default(0)
+  nextLevelExp    Int          @default(100)
+  classId         String?
+  class           Class?       @relation(fields: [classId], references: [id])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  status          SystemStatus @default(ACTIVE)
+
+  @@unique([teacherId, classId])
+  @@index([teacherId])
+  @@index([classId])
+  @@map("teacher_levels")
+}
+
+// Teacher Attendance model
+model TeacherAttendance {
+  id              String       @id @default(cuid())
+  teacherId       String
+  teacher         TeacherProfile @relation(fields: [teacherId], references: [id])
+  date            DateTime
+  status          String       // "present", "absent", "late", "excused"
+  checkInTime     DateTime?
+  checkOutTime    DateTime?
+  classId         String?
+  class           Class?       @relation(fields: [classId], references: [id])
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  attendanceStatus SystemStatus @default(ACTIVE)
+
+  @@index([teacherId])
+  @@index([date])
+  @@index([classId])
+  @@index([status])
+  @@map("teacher_attendance")
+}
+
+// Daily teacher points aggregation for efficient leaderboard calculation
+model TeacherPointsAggregate {
+  id              String       @id @default(cuid())
+  teacherId       String
+  teacher         TeacherProfile @relation(fields: [teacherId], references: [id])
+  classId         String?
+  class           Class?       @relation(fields: [classId], references: [id])
+  subjectId       String?
+  subject         Subject?     @relation(fields: [subjectId], references: [id])
+  courseId        String?
+  campusId        String?
+  date            DateTime
+  dailyPoints     Int          @default(0)
+  weeklyPoints    Int          @default(0)
+  monthlyPoints   Int          @default(0)
+  termPoints      Int          @default(0)
+  totalPoints     Int          @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([teacherId, classId, subjectId, date])
+  @@index([teacherId])
+  @@index([classId])
+  @@index([subjectId])
+  @@index([date])
+  @@map("teacher_points_aggregates")
+}
+
+// Teacher Performance Metrics model
+model TeacherPerformanceMetrics {
+  id                  String       @id @default(cuid())
+  teacherId           String
+  teacher             TeacherProfile @relation(fields: [teacherId], references: [id])
+  classId             String?
+  class               Class?       @relation(fields: [classId], references: [id])
+  courseId            String?
+  course              Course?      @relation(fields: [courseId], references: [id])
+  programId           String?
+  program             Program?     @relation(fields: [programId], references: [id])
+  timeframe           String       // "day", "week", "month", "term", "year"
+  studentPerformance  Float        @default(0)
+  attendanceRate      Float        @default(0)
+  feedbackTime        Float        @default(0) // in hours
+  activityCreation    Int          @default(0)
+  activityEngagement  Float        @default(0)
+  classPerformance    Float        @default(0)
+  overallRating       Float        @default(0)
+  date                DateTime     @default(now())
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  status              SystemStatus @default(ACTIVE)
+
+  @@index([teacherId])
+  @@index([classId])
+  @@index([courseId])
+  @@index([programId])
+  @@index([timeframe])
+  @@index([date])
+  @@map("teacher_performance_metrics")
+}
+
+// Class Transfer model
+model ClassTransfer {
+  id                String       @id @default(cuid())
+  studentId         String
+  student           StudentProfile @relation(fields: [studentId], references: [id])
+  fromClassId       String
+  fromClass         Class        @relation("FromClass", fields: [fromClassId], references: [id])
+  toClassId         String
+  toClass           Class        @relation("ToClass", fields: [toClassId], references: [id])
+  reason            String?
+  transferStatus    String       // "pending", "approved", "rejected", "completed"
+  requestDate       DateTime     @default(now())
+  approvalDate      DateTime?
+  completionDate    DateTime?
+  requestedById     String
+  requestedBy       User         @relation("RequestedTransfers", fields: [requestedById], references: [id])
+  approvedById      String?
+  approvedBy        User?        @relation("ApprovedTransfers", fields: [approvedById], references: [id])
+  batchTransferId   String?
+  batchTransfer     BatchClassTransfer? @relation(fields: [batchTransferId], references: [id])
+  notes             String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  status            SystemStatus @default(ACTIVE)
+
+  @@index([studentId])
+  @@index([fromClassId])
+  @@index([toClassId])
+  @@index([transferStatus])
+  @@index([requestDate])
+  @@index([batchTransferId])
+  @@map("class_transfers")
+}
+
+// Batch Class Transfer model
+model BatchClassTransfer {
+  id                String       @id @default(cuid())
+  fromClassId       String
+  fromClass         Class        @relation("BatchFromClass", fields: [fromClassId], references: [id])
+  toClassId         String
+  toClass           Class        @relation("BatchToClass", fields: [toClassId], references: [id])
+  reason            String?
+  transferStatus    String       // "pending", "approved", "rejected", "completed"
+  requestDate       DateTime     @default(now())
+  approvalDate      DateTime?
+  completionDate    DateTime?
+  requestedById     String
+  requestedBy       User         @relation("RequestedBatchTransfers", fields: [requestedById], references: [id])
+  approvedById      String?
+  approvedBy        User?        @relation("ApprovedBatchTransfers", fields: [approvedById], references: [id])
+  studentCount      Int          @default(0)
+  transfers         ClassTransfer[]
+  notes             String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  status            SystemStatus @default(ACTIVE)
+
+  @@index([fromClassId])
+  @@index([toClassId])
+  @@index([transferStatus])
+  @@index([requestDate])
+  @@map("batch_class_transfers")
+}

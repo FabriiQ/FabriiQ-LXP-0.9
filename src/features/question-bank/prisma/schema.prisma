@@ -1,0 +1,210 @@
+// Question Bank Models
+// These models should be added to the main prisma/schema.prisma file
+
+model QuestionBank {
+  id                String              @id @default(cuid())
+  name              String
+  description       String?
+  institutionId     String
+  createdById       String
+  updatedById       String?
+  status            SystemStatus        @default(ACTIVE)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  partitionKey      String              // For database partitioning
+  
+  // Relations
+  institution       Institution         @relation(fields: [institutionId], references: [id])
+  createdBy         User                @relation("CreatedQuestionBanks", fields: [createdById], references: [id])
+  updatedBy         User?               @relation("UpdatedQuestionBanks", fields: [updatedById], references: [id])
+  questions         Question[]
+  categories        QuestionCategory[]
+  
+  // Indexes
+  @@index([institutionId, status])
+  @@index([partitionKey])
+}
+
+model Question {
+  id                String              @id @default(cuid())
+  questionBankId    String
+  title             String
+  questionType      QuestionType
+  difficulty        DifficultyLevel     @default(MEDIUM)
+  content           Json                // Structured content specific to the question type
+  metadata          Json?               // Additional metadata (tags, source, etc.)
+  status            SystemStatus        @default(ACTIVE)
+  
+  // Academic context
+  courseId          String?             // Optional course association
+  subjectId         String              // Required subject association
+  topicId           String?             // Optional topic association
+  gradeLevel        Int?                // Grade/class level (1-12)
+  
+  // Source tracking
+  sourceId          String?             // Optional reference to question source
+  sourceReference   String?             // Reference within the source (e.g., page number)
+  year              Int?                // Year of the question (especially for past papers)
+  
+  // Audit fields
+  createdById       String
+  updatedById       String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  partitionKey      String              // For database partitioning
+  
+  // Relations
+  questionBank      QuestionBank        @relation(fields: [questionBankId], references: [id])
+  course            Course?             @relation(fields: [courseId], references: [id])
+  subject           Subject             @relation(fields: [subjectId], references: [id])
+  topic             SubjectTopic?       @relation(fields: [topicId], references: [id])
+  source            QuestionSource?     @relation(fields: [sourceId], references: [id])
+  createdBy         User                @relation("CreatedQuestions", fields: [createdById], references: [id])
+  updatedBy         User?               @relation("UpdatedQuestions", fields: [updatedById], references: [id])
+  categories        QuestionCategoryMapping[]
+  usageStats        QuestionUsageStats?
+  versions          QuestionVersion[]
+  
+  // Indexes
+  @@index([questionBankId, questionType, status])
+  @@index([partitionKey])
+  @@index([subjectId, status])
+  @@index([courseId, status])
+  @@index([topicId, status])
+  @@index([gradeLevel, status])
+  @@index([year])
+  @@index([sourceId])
+}
+
+model QuestionCategory {
+  id                String                    @id @default(cuid())
+  name              String
+  description       String?
+  questionBankId    String
+  parentId          String?
+  status            SystemStatus              @default(ACTIVE)
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  
+  // Relations
+  questionBank      QuestionBank              @relation(fields: [questionBankId], references: [id])
+  parent            QuestionCategory?         @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children          QuestionCategory[]        @relation("CategoryHierarchy")
+  questions         QuestionCategoryMapping[]
+  
+  // Indexes
+  @@index([questionBankId, status])
+  @@index([parentId])
+}
+
+model QuestionCategoryMapping {
+  id                String              @id @default(cuid())
+  questionId        String
+  categoryId        String
+  createdAt         DateTime            @default(now())
+  
+  // Relations
+  question          Question            @relation(fields: [questionId], references: [id])
+  category          QuestionCategory    @relation(fields: [categoryId], references: [id])
+  
+  // Indexes
+  @@index([questionId])
+  @@index([categoryId])
+  @@unique([questionId, categoryId])
+}
+
+model QuestionUsageStats {
+  id                String              @id @default(cuid())
+  questionId        String              @unique
+  usageCount        Int                 @default(0)
+  correctCount      Int                 @default(0)
+  incorrectCount    Int                 @default(0)
+  partialCount      Int                 @default(0)
+  averageTime       Float?              // Average time in seconds to answer
+  difficultyRating  Float?              // Calculated difficulty based on performance
+  lastUsedAt        DateTime?
+  updatedAt         DateTime            @updatedAt
+  
+  // Relations
+  question          Question            @relation(fields: [questionId], references: [id])
+  
+  // Indexes
+  @@index([questionId])
+  @@index([usageCount])
+  @@index([difficultyRating])
+}
+
+model QuestionSource {
+  id                String              @id @default(cuid())
+  name              String
+  description       String?
+  type              QuestionSourceType  // TEXTBOOK, PAST_PAPER, CUSTOM, etc.
+  metadata          Json?               // Additional metadata about the source
+  institutionId     String
+  status            SystemStatus        @default(ACTIVE)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  // Relations
+  institution       Institution         @relation(fields: [institutionId], references: [id])
+  questions         Question[]
+  
+  // Indexes
+  @@index([institutionId, status])
+}
+
+model QuestionVersion {
+  id                String              @id @default(cuid())
+  questionId        String
+  versionNumber     Int
+  content           Json                // The content at this version
+  metadata          Json?               // Additional metadata at this version
+  createdById       String
+  createdAt         DateTime            @default(now())
+  
+  // Relations
+  question          Question            @relation(fields: [questionId], references: [id])
+  createdBy         User                @relation(fields: [createdById], references: [id])
+  
+  // Indexes
+  @@index([questionId])
+  @@index([questionId, versionNumber])
+  @@unique([questionId, versionNumber])
+}
+
+// Enums
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  MULTIPLE_RESPONSE
+  FILL_IN_THE_BLANKS
+  MATCHING
+  DRAG_AND_DROP
+  DRAG_THE_WORDS
+  NUMERIC
+  SEQUENCE
+  FLASH_CARDS
+  READING
+  VIDEO
+  SHORT_ANSWER
+  ESSAY
+  HOTSPOT
+  LIKERT_SCALE
+}
+
+enum DifficultyLevel {
+  VERY_EASY
+  EASY
+  MEDIUM
+  HARD
+  VERY_HARD
+}
+
+enum QuestionSourceType {
+  TEXTBOOK
+  PAST_PAPER
+  CUSTOM
+  GENERATED
+  IMPORTED
+  THIRD_PARTY
+}

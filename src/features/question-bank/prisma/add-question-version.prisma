@@ -1,0 +1,21 @@
+// This file contains the Prisma schema for the QuestionVersion model
+// It should be used as a reference when creating the actual migration
+
+model QuestionVersion {
+  id                String              @id @default(cuid())
+  questionId        String
+  versionNumber     Int
+  content           Json                // The content at this version
+  metadata          Json?               // Additional metadata at this version
+  createdById       String
+  createdAt         DateTime            @default(now())
+  
+  // Relations
+  question          Question            @relation(fields: [questionId], references: [id])
+  createdBy         User                @relation(fields: [createdById], references: [id])
+  
+  // Indexes
+  @@index([questionId])
+  @@index([questionId, versionNumber])
+  @@unique([questionId, versionNumber])
+}

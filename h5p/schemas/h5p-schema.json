@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "H5P Package Schema",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "The title of the H5P package"
+    },
+    "language": {
+      "type": "string",
+      "description": "The language of the H5P package"
+    },
+    "mainLibrary": {
+      "type": "string",
+      "description": "The main library of the H5P package"
+    }
+  }
+}

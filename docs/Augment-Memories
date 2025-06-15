@@ -1,0 +1,76 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Component Design
+- The user wants to create unified shared components that are role-based instead of having separate components for different roles (system admin, campus admin, coordinator) for the same entities (Teachers, courses, classes, students, etc.).
+- The user wants to implement a structured UI component system with core, extended, composite, and specialized components following the organization outlined in componentsrevamp/ui-components-unification-plan.md.
+- The user wants UI components to be mobile-first, performance optimized for fast loading, and follow the UI/UX patterns of the existing system.
+- When implementing UI components, prioritize mobile-first design, efficiency, performance, ensure backward compatibility with existing components, follow the task lists in the componentsrevamp folder and resolve all linter errors before moving to the next file.
+- The user wants to create shared class-related components in /src/components/shared/entities/classes/ following a specific structure with components like ClassCard, ClassList, ClassDetail, etc. All class-related components should be mobile-first and aligned with the UI/UX plan document.
+- The user wants to create task lists for remaining entity components in the componentsrevamp folder, using the newly created UI core components.
+- UI core components are located at src/components/ui/core.
+- Create new UI components in the components/ui/core folder when needed.
+- Use Button component from src/components/ui/core directory instead of other Button implementations.
+- Existing activity components in src/features directory need to be moved and integrated into the new activities component structure.
+- The user wants to implement student components next, following the pattern established with attendance components.
+
+# Charting Library
+- The user prefers using Nivo charts library instead of React Charts for implementing visualization components.
+
+# Analytics and Reporting
+- When implementing analytics and reports components, prioritize efficiency, real-time data fetching capabilities, and robust analytics functionality.
+
+# Attendance Components
+- When implementing attendance components, prioritize backward compatibility, fast loading, and efficient performance.
+
+# General
+- Use smaller inputs when making tool calls to prevent failures.

@@ -1,0 +1,142 @@
+// Teacher Leaderboard Schema Updates
+// These models should be added to the main prisma/schema.prisma file
+
+// Teacher Points model - Records individual point transactions
+model TeacherPoints {
+  id              String         @id @default(cuid())
+  teacherId       String
+  teacher         TeacherProfile @relation(fields: [teacherId], references: [id])
+  amount          Int
+  source          String         // e.g., "lesson_plan", "activity_creation", "feedback", "attendance", "class_performance"
+  sourceId        String?        // ID of the source (lesson plan ID, activity ID, etc.)
+  classId         String?
+  class           Class?         @relation(fields: [classId], references: [id])
+  subjectId       String?
+  subject         Subject?       @relation(fields: [subjectId], references: [id])
+  description     String?
+  createdAt       DateTime       @default(now())
+  status          SystemStatus   @default(ACTIVE)
+  partitionKey    String?        // For database partitioning
+
+  @@index([teacherId])
+  @@index([classId])
+  @@index([subjectId])
+  @@index([source])
+  @@index([createdAt])
+  @@index([status])
+  @@index([partitionKey])
+  @@map("teacher_points")
+}
+
+// Teacher Points Aggregate model - Pre-calculated aggregations for efficient leaderboard queries
+model TeacherPointsAggregate {
+  id              String         @id @default(cuid())
+  teacherId       String
+  teacher         TeacherProfile @relation(fields: [teacherId], references: [id])
+  classId         String?
+  class           Class?         @relation(fields: [classId], references: [id])
+  subjectId       String?
+  subject         Subject?       @relation(fields: [subjectId], references: [id])
+  courseId        String?
+  course          Course?        @relation(fields: [courseId], references: [id])
+  programId       String?
+  campusId        String?
+  campus          Campus?        @relation(fields: [campusId], references: [id])
+  date            DateTime
+  dailyPoints     Int            @default(0)
+  weeklyPoints    Int            @default(0)
+  monthlyPoints   Int            @default(0)
+  termPoints      Int            @default(0)
+  totalPoints     Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  status          SystemStatus   @default(ACTIVE)
+  partitionKey    String?        // For database partitioning
+
+  @@index([teacherId])
+  @@index([classId])
+  @@index([subjectId])
+  @@index([courseId])
+  @@index([programId])
+  @@index([campusId])
+  @@index([date])
+  @@index([status])
+  @@index([partitionKey])
+  @@map("teacher_points_aggregate")
+}
+
+// Teacher Achievement model - Tracks progress toward achievements
+model TeacherAchievement {
+  id              String         @id @default(cuid())
+  teacherId       String
+  teacher         TeacherProfile @relation(fields: [teacherId], references: [id])
+  type            String         // e.g., "content_creator", "feedback_champion", "perfect_attendance", "class_performance", "master_educator"
+  level           String         // "bronze", "silver", "gold"
+  title           String
+  description     String
+  icon            String?
+  unlockedAt      DateTime?
+  progress        Int            @default(0)
+  target          Int
+  unlocked        Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  status          SystemStatus   @default(ACTIVE)
+  partitionKey    String?        // For database partitioning
+
+  @@index([teacherId])
+  @@index([type])
+  @@index([unlocked])
+  @@index([status])
+  @@index([partitionKey])
+  @@map("teacher_achievements")
+}
+
+// Teacher Performance Metrics model - Stores calculated performance metrics
+model TeacherPerformanceMetrics {
+  id                 String         @id @default(cuid())
+  teacherId          String
+  teacher            TeacherProfile @relation(fields: [teacherId], references: [id])
+  classId            String?
+  class              Class?         @relation(fields: [classId], references: [id])
+  subjectId          String?
+  subject            Subject?       @relation(fields: [subjectId], references: [id])
+  courseId           String?
+  course             Course?        @relation(fields: [courseId], references: [id])
+  programId          String?
+  timeframe          String         @default("all-time") // "daily", "weekly", "monthly", "term", "all-time"
+  attendanceRate     Float          @default(0)
+  feedbackTime       Float          @default(0) // in hours
+  activityCreation   Int            @default(0)
+  activityEngagement Float          @default(0)
+  classPerformance   Float          @default(0)
+  overallRating      Float          @default(0)
+  date               DateTime       @default(now())
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  status             SystemStatus   @default(ACTIVE)
+  partitionKey       String?        // For database partitioning
+
+  @@index([teacherId])
+  @@index([classId])
+  @@index([subjectId])
+  @@index([courseId])
+  @@index([programId])
+  @@index([timeframe])
+  @@index([date])
+  @@index([status])
+  @@index([partitionKey])
+  @@map("teacher_performance_metrics")
+}
+
+// Update TeacherProfile model to include totalPoints field
+// This should be added to the existing TeacherProfile model
+// model TeacherProfile {
+//   ...existing fields
+//   totalPoints     Int            @default(0)
+//   points          TeacherPoints[]
+//   pointsAggregates TeacherPointsAggregate[]
+//   achievements    TeacherAchievement[]
+//   performanceMetrics TeacherPerformanceMetrics[]
+//   ...existing relations
+// }

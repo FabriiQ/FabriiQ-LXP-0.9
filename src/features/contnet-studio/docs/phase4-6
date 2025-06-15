@@ -1,0 +1,164 @@
+Phase 4: Refactor Content Creation Pages
+
+### 4.1 Refactor Activity Creation Page
+
+- [ ] Refactor ActivityCreationPage to use reusable components
+  - [ ] Integrate StepBasedFlow
+  - [ ] Use ContentCreationLayout
+  - [ ] Implement AIParametersForm
+  - [ ] Add ContentPreview
+- [ ] Extract activity-specific components
+  - [ ] Create ActivityTypeSelector
+  - [ ] Implement ActivityParametersForm
+  - [ ] Create ActivityPreview
+- [ ] Update tests for refactored components
+  - [ ] Test integration with reusable components
+  - [ ] Test activity-specific functionality
+  - [ ] Test responsive behavior
+  - [ ] Test accessibility
+
+### 4.2 Refactor Assessment Creation Page
+
+- [ ] Refactor AssessmentCreationPage to use reusable components
+  - [ ] Integrate StepBasedFlow
+  - [ ] Use ContentCreationLayout
+  - [ ] Implement AIParametersForm
+  - [ ] Add ContentPreview
+- [ ] Extract assessment-specific components
+  - [ ] Create AssessmentTypeSelector
+  - [ ] Implement AssessmentParametersForm
+  - [ ] Create AssessmentPreview
+- [ ] Update tests for refactored components
+  - [ ] Test integration with reusable components
+  - [ ] Test assessment-specific functionality
+  - [ ] Test responsive behavior
+  - [ ] Test accessibility
+
+### 4.3 Refactor Worksheet Creation Page
+
+- [ ] Refactor WorksheetCreationPage to use reusable components
+  - [ ] Integrate StepBasedFlow
+  - [ ] Use ContentCreationLayout
+  - [ ] Implement AIParametersForm
+  - [ ] Add ContentPreview
+- [ ] Extract worksheet-specific components
+  - [ ] Create WorksheetTypeSelector
+  - [ ] Implement WorksheetParametersForm
+  - [ ] Create WorksheetPreview
+- [ ] Update tests for refactored components
+  - [ ] Test integration with reusable components
+  - [ ] Test worksheet-specific functionality
+  - [ ] Test responsive behavior
+  - [ ] Test accessibility
+
+### 4.4 Refactor Lesson Plan Creation Page
+
+- [ ] Refactor LessonPlanCreationPage to use reusable components
+  - [ ] Integrate StepBasedFlow
+  - [ ] Use ContentCreationLayout
+  - [ ] Implement AIParametersForm
+  - [ ] Add ContentPreview
+  - [ ] Use DateRangeSelector
+  - [ ] Integrate TeachingMethodsSelector
+  - [ ] Use PlanStructureEditor
+  - [ ] Implement ResourceLinker
+- [ ] Update tests for refactored components
+  - [ ] Test integration with reusable components
+  - [ ] Test lesson plan-specific functionality
+  - [ ] Test responsive behavior
+  - [ ] Test accessibility
+
+  # Phase 6: Integration with Existing Components
+
+### 6.1 Activity Type Integration with Existing Components
+
+- [ ] Integrate with existing activity types from features/activities
+  - [ ] Connect to Multiple Choice components from activity registry
+  - [ ] Connect to Fill in the Blanks components from activity registry
+  - [ ] Connect to Reading components from activity registry
+  - [ ] Connect to Video components from activity registry
+  - [ ] Connect to True/False components from activity registry
+  - [ ] Connect to Matching components from activity registry
+  - [ ] Connect to Sequence components from activity registry
+  - [ ] Connect to Drag and Drop components from activity registry
+  - [ ] Connect to Multiple Response components from activity registry
+  - [ ] Connect to Numeric components from activity registry
+  - [ ] Connect to Drag The Words components from activity registry
+- [ ] Enhance ActivityTypeBridge TypeMapper
+  - [ ] Consolidate duplicate activity types (e.g., 'fill-in-blanks'/'fill-in-the-blanks')
+  - [ ] Ensure consistent mapping between high-level types and specific IDs
+  - [ ] Add comprehensive activity type display names
+  - [ ] Implement purpose detection for activity types
+- [ ] Leverage existing activity preview components
+  - [ ] Use ActivityViewer from components/activities
+  - [ ] Implement wrapper for student/teacher view switching
+  - [ ] Add error handling for missing activity types
+  - [ ] Ensure responsive design compatibility
+- [ ] Leverage existing activity editor components
+  - [ ] Use ActivityEditor from components/teacher/activities/enhanced
+  - [ ] Implement consistent form validation
+  - [ ] Add auto-save functionality
+  - [ ] Ensure proper error handling
+- [ ] Integrate with activity analytics
+  - [ ] Connect to existing ActivityAnalyticsWrapper
+  - [ ] Implement completion tracking with existing hooks
+  - [ ] Use existing performance metrics collection
+- [ ] Write tests for activity type integration
+  - [ ] Test ActivityTypeBridge with all activity types
+  - [ ] Test activity viewer integration with various content
+  - [ ] Test activity editor integration with edge cases
+  - [ ] Test analytics integration with mock data
+  - [ ] Test error handling with missing activity types
+
+### 6.5 Lesson Plan Integration with Existing Components
+
+- [ ] Integrate with existing lesson plan components
+  - [ ] Use LessonPlanForm from components/teacher/lesson-plans
+  - [ ] Leverage existing learning objectives selector
+  - [ ] Connect to existing teaching methods selector
+  - [ ] Use existing resource linking functionality
+  - [ ] Integrate with existing assessment selection
+  - [ ] Connect to existing activity selection
+- [ ] Enhance lesson plan content structure
+  - [ ] Ensure compatibility with lessonPlanContentSchema
+  - [ ] Implement proper validation for all content sections
+  - [ ] Add time allocation for activities and assessments
+  - [ ] Create differentiation planning options
+- [ ] Improve lesson plan workflow integration
+  - [ ] Connect to existing approval workflow
+  - [ ] Implement status tracking and visualization
+  - [ ] Add reflection capabilities for completed plans
+  - [ ] Create notification system for status changes
+- [ ] Enhance lesson plan AI generation
+  - [ ] Implement AI-assisted learning objectives based on topics
+  - [ ] Create AI-suggested teaching methods based on content
+  - [ ] Add AI-recommended resources based on objectives
+  - [ ] Implement AI-suggested activities and assessments
+- [ ] Write tests for lesson plan integration
+  - [ ] Test integration with existing components
+  - [ ] Test AI-assisted generation features
+  - [ ] Test workflow status transitions
+  - [ ] Test content validation with edge cases
+  - [ ] Test integration with activities and assessments
+
+## Phase 7: Content Conversion
+
+### 7.1 Activity to Worksheet Conversion
+
+- [ ] Implement activity to worksheet conversion
+  - [ ] Create conversion UI
+  - [ ] Add conversion options (paper size, formatting, etc.)
+  - [ ] Implement conversion logic
+- [ ] Add activity type mapping
+  - [ ] Map activity types to printable worksheet formats
+  - [ ] Create content transformation for print-friendly output
+  - [ ] Add validation for printability
+- [ ] Implement preview of converted worksheet
+  - [ ] Create side-by-side preview (digital vs. print)
+  - [ ] Add print layout options (spacing, font size, etc.)
+  - [ ] Implement edit options for worksheet customization
+- [ ] Write tests for worksheet conversion
+  - [ ] Test conversion UI
+  - [ ] Test mapping logic
+  - [ ] Test preview
+  - [ ] Test print output validation
