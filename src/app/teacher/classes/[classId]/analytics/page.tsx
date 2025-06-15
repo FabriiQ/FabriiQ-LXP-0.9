@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, BarChart, Brain, LineChart, Users } from 'lucide-react';
+import { ClassAnalyticsDashboard } from './components/ClassAnalyticsDashboard'; // Import the new dashboard
 
 interface ClassAnalyticsPageProps {
   params: {
@@ -192,26 +193,9 @@ export default function ClassAnalyticsPage({ params }: ClassAnalyticsPageProps) 
         </Card>
       </div>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Analytics Overview</CardTitle>
-          <CardDescription>
-            Summary of key metrics for {classDetails.name}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center p-12 text-center">
-            <div className="text-muted-foreground">
-              <LineChart className="h-16 w-16 mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-medium mb-2">Analytics Dashboard Coming Soon</h3>
-              <p>
-                We're working on a comprehensive analytics dashboard for your class.
-                In the meantime, you can explore Bloom's Taxonomy analytics above.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Replace the "Coming Soon" card with the new ClassAnalyticsDashboard */}
+      <ClassAnalyticsDashboard classId={classId} />
+
     </div>
   );
 }

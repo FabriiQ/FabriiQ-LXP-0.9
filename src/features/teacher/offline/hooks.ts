@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { isOnline, syncTeacherData, SyncStatus, addSyncListener, removeSyncListener } from './sync';
+import { isOnline, syncTeacherData, SyncStatus, SyncResult, addSyncListener, removeSyncListener } from './sync'; // Added SyncResult
 import { trackOfflineModeEnter, trackOfflineModeExit } from './analytics';
+import { api } from '@/trpc/react'; // Added for tRPC context
 
 // Define OfflineConfig here to avoid circular dependency
 export interface OfflineConfig {
@@ -26,13 +27,14 @@ interface UseOfflineSupportProps {
   config?: Partial<OfflineConfig>;
   onStatusChange?: (isOffline: boolean) => void;
   onSyncStatusChange?: (status: SyncStatus, progress?: number) => void;
+  currentClassId?: string; // Optional: for more targeted invalidations
 }
 
 interface UseOfflineSupportResult {
   isOffline: boolean;
   syncStatus: SyncStatus;
   syncProgress: number | undefined;
-  syncTeacher: () => Promise<void>;
+  syncTeacher: () => Promise<SyncResult | undefined>; // Return SyncResult
 }
 
 /**
@@ -43,11 +45,13 @@ export function useOfflineSupport({
   enabled = true,
   config = {},
   onStatusChange,
-  onSyncStatusChange
+  onSyncStatusChange,
+  currentClassId, // Destructure, though not used in this specific invalidation logic yet
 }: UseOfflineSupportProps): UseOfflineSupportResult {
   const [isOffline, setIsOffline] = useState(!isOnline());
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(SyncStatus.IDLE);
   const [syncProgress, setSyncProgress] = useState<number | undefined>(undefined);
+  const utils = api.useContext(); // Get tRPC utils for invalidation
 
   // Merge config with defaults
   const mergedConfig: OfflineConfig = {
@@ -58,100 +62,102 @@ export function useOfflineSupport({
   // Track when offline mode started
   const offlineStartTimeRef = useRef<number | null>(null);
 
+  // Function to perform invalidations
+  const invalidateSyncedData = useCallback(() => {
+    console.log('[Sync] Invalidating relevant queries after successful sync.');
+    // Broad invalidation for simplicity, adjust if currentClassId or more specific needs arise.
+    utils.teacher.invalidate().catch(err => console.error("Error invalidating teacher queries:", err));
+    utils.assessment.invalidate().catch(err => console.error("Error invalidating assessment queries:", err));
+    utils.attendance.invalidate().catch(err => console.error("Error invalidating attendance queries:", err));
+    // Consider other routers if they exist and are affected by sync, e.g., utils.activity.invalidate();
+  }, [utils]);
+
+
   // Handle online/offline status changes
   useEffect(() => {
     if (!enabled) return;
 
-    const handleOnline = () => {
+    const handleOnline = async () => { // Make async to await syncTeacherData
       setIsOffline(false);
 
-      // Calculate offline duration
       if (offlineStartTimeRef.current) {
         const offlineDuration = Date.now() - offlineStartTimeRef.current;
         trackOfflineModeExit(teacherId, 'teacher', offlineDuration);
         offlineStartTimeRef.current = null;
       }
+      if (onStatusChange) onStatusChange(false);
 
-      // Notify status change
-      if (onStatusChange) {
-        onStatusChange(false);
-      }
-
-      // Auto sync if enabled
       if (mergedConfig.autoSync) {
-        syncTeacherData();
+        console.log('[Sync] Auto-sync triggered on going online.');
+        const syncResult = await syncTeacherData(); // Await the result
+        if (syncResult.status === SyncStatus.SUCCESS && syncResult.syncedCount > 0) {
+          invalidateSyncedData();
+        }
       }
     };
 
     const handleOffline = () => {
       setIsOffline(true);
-
-      // Track offline mode enter
       trackOfflineModeEnter(teacherId, 'teacher');
       offlineStartTimeRef.current = Date.now();
-
-      // Notify status change
-      if (onStatusChange) {
-        onStatusChange(true);
-      }
+      if (onStatusChange) onStatusChange(true);
     };
 
-    // Set initial state
-    setIsOffline(!isOnline());
-    if (!isOnline() && !offlineStartTimeRef.current) {
-      trackOfflineModeEnter(teacherId, 'teacher');
-      offlineStartTimeRef.current = Date.now();
+    // Initial status check & potential initial sync
+    const online = isOnline();
+    setIsOffline(!online);
+    if (!online && !offlineStartTimeRef.current) {
+        trackOfflineModeEnter(teacherId, 'teacher');
+        offlineStartTimeRef.current = Date.now();
+    } else if (online && mergedConfig.autoSync && syncStatus !== SyncStatus.SYNCING) {
+        // Attempt initial sync if online and not already syncing
+        (async () => {
+            console.log('[Sync] Initial auto-sync attempt on load (if online).');
+            const syncResult = await syncTeacherData();
+            if (syncResult.status === SyncStatus.SUCCESS && syncResult.syncedCount > 0) {
+                invalidateSyncedData();
+            }
+        })();
     }
 
-    // Add event listeners
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-
-      // Track offline exit if still offline
-      if (offlineStartTimeRef.current) {
+      if (offlineStartTimeRef.current) { // Ensure cleanup if component unmounts while offline
         const offlineDuration = Date.now() - offlineStartTimeRef.current;
         trackOfflineModeExit(teacherId, 'teacher', offlineDuration);
       }
     };
-  }, [enabled, teacherId, mergedConfig.autoSync, onStatusChange]);
+  }, [enabled, teacherId, mergedConfig.autoSync, onStatusChange, invalidateSyncedData, syncStatus]); // Added invalidateSyncedData and syncStatus
 
   // Listen for sync status changes
   useEffect(() => {
     if (!enabled) return;
-
     const handleSyncStatusChange = (status: SyncStatus, progress?: number) => {
       setSyncStatus(status);
       setSyncProgress(progress);
-
-      // Notify sync status change
-      if (onSyncStatusChange) {
-        onSyncStatusChange(status, progress);
-      }
+      if (onSyncStatusChange) onSyncStatusChange(status, progress);
     };
-
-    // Add sync listener
     addSyncListener(handleSyncStatusChange);
-
-    return () => {
-      // Remove sync listener
-      removeSyncListener(handleSyncStatusChange);
-    };
+    return () => removeSyncListener(handleSyncStatusChange);
   }, [enabled, onSyncStatusChange]);
 
-  // Sync teacher data
+  // Sync teacher data manually
   const syncTeacher = useCallback(async () => {
-    if (!enabled) return;
-
-    try {
-      await syncTeacherData(true);
-    } catch (error) {
-      console.error('Failed to sync teacher data:', error);
+    if (!enabled) {
+        console.warn('[Sync] Sync triggered but offline support is not enabled.');
+        return { status: SyncStatus.IDLE, syncedCount: 0, failedCount: 0, errors: [new Error("Offline support not enabled.")] };
     }
-  }, [enabled]);
+    console.log('[Sync] Manual sync triggered.');
+    const syncResult = await syncTeacherData(true); // forceSync = true
+    if (syncResult.status === SyncStatus.SUCCESS && syncResult.syncedCount > 0) {
+      invalidateSyncedData();
+    }
+    return syncResult; // Return the sync result
+  }, [enabled, invalidateSyncedData]);
 
   return {
     isOffline,

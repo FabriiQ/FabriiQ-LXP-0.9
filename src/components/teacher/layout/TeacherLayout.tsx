@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Ensure useEffect is imported
 import { TeacherHeader } from '../navigation/TeacherHeader';
-import { TeacherBottomNav } from '../navigation/TeacherBottomNav';
+// import { TeacherBottomNav } from '../navigation/TeacherBottomNav'; // TeacherBottomNav is not used in the provided code
 import { useResponsive } from '@/lib/hooks/use-responsive';
 import { cn } from '@/lib/utils';
 import { useOfflineSupport } from '@/features/teacher/offline/hooks';
 import { OfflineIndicator } from '@/features/teacher/offline/components';
 import { useToast } from '@/components/ui/use-toast';
 import { TeacherAssistantProvider, TeacherAssistantComponents } from '@/features/teacher-assistant';
+import { registerSpecificServiceWorker } from '@/utils/register-sw';
 
 interface TeacherLayoutProps {
   children: React.ReactNode;
@@ -27,7 +28,6 @@ interface TeacherLayoutProps {
  * Features:
  * - Mobile-first responsive design
  * - Header with class selector and profile menu
- * - Bottom navigation for mobile
  * - Main content area with appropriate padding
  */
 export function TeacherLayout({
@@ -40,9 +40,14 @@ export function TeacherLayout({
   title,
   className,
 }: TeacherLayoutProps) {
-  const { isMobile } = useResponsive();
+  // const { isMobile } = useResponsive(); // isMobile is not used in the provided code
   const { toast } = useToast();
-  const [showOfflineIndicator, setShowOfflineIndicator] = useState(true);
+  // const [showOfflineIndicator, setShowOfflineIndicator] = useState(true); // Removed
+
+  useEffect(() => {
+    // Register the teacher-specific service worker
+    registerSpecificServiceWorker('/service-worker.js');
+  }, []); // Empty dependency array ensures this runs once on mount
 
   // Set up offline support
   const { isOffline, syncStatus, syncProgress } = useOfflineSupport({
@@ -71,14 +76,12 @@ export function TeacherLayout({
   return (
     <TeacherAssistantProvider>
       <div className="min-h-screen bg-background flex flex-col">
-        {/* Show offline banner at the top */}
-        {showOfflineIndicator && (
-          <OfflineIndicator
-            variant="banner"
-            position="top"
-            showSyncStatus={true}
-          />
-        )}
+        {/* Show offline banner at the top - always rely on this banner */}
+        <OfflineIndicator
+          variant="banner"
+          position="top"
+          showSyncStatus={true}
+        />
 
         <TeacherHeader
           teacherId={teacherId}
@@ -103,7 +106,11 @@ export function TeacherLayout({
           {children}
         </main>
 
-        {/* Show floating indicator for sync status */}
+        {/* Floating indicator removed as showOfflineIndicator state was removed.
+            If a floating indicator is desired under different conditions,
+            new state logic would be needed.
+        */}
+        {/*
         {!showOfflineIndicator && (
           <OfflineIndicator
             variant="floating"
@@ -111,6 +118,7 @@ export function TeacherLayout({
             showSyncStatus={true}
           />
         )}
+        */}
 
         {/* Teacher Assistant Components */}
         <TeacherAssistantComponents />

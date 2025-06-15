@@ -49,8 +49,10 @@ export function ClassSelector({ teacherId, currentClassId }: ClassSelectorProps)
       teacherId
     },
     {
-      refetchOnWindowFocus: false,
-      retry: 1,
+      // refetchOnWindowFocus: false, // Previous setting
+      refetchOnWindowFocus: true,    // Explicitly set to true
+      // retry: 1, // Removing to use React Query default retry behavior
+      // staleTime: 1 * 60 * 1000, // Optional: Consider if data doesn't change hyper-frequently
     }
   );
 

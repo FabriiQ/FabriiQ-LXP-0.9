@@ -26,6 +26,8 @@ interface TeacherAssistantProviderProps {
   children: React.ReactNode;
 }
 
+const TA_SESSION_STATE_KEY = 'teacherAssistantSessionState';
+
 /**
  * Teacher Assistant Provider
  *
@@ -44,14 +46,45 @@ export function TeacherAssistantProvider({ children }: TeacherAssistantProviderP
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // Initial state loader function
+  const loadInitialState = () => {
+    if (typeof window !== 'undefined') {
+      const savedStateRaw = sessionStorage.getItem(TA_SESSION_STATE_KEY);
+      if (savedStateRaw) {
+        try {
+          const savedState = JSON.parse(savedStateRaw);
+          if (savedState && typeof savedState.isOpen === 'boolean' && Array.isArray(savedState.messages)) {
+            // Ensure messages have proper structure, e.g., id, role, content, timestamp
+            const validMessages = savedState.messages.filter(
+              (msg: Message) => msg.id && msg.role && msg.content && msg.timestamp
+            );
+            return {
+              isOpen: savedState.isOpen,
+              messages: validMessages.length > 0 ? validMessages : [{ id: uuidv4(), role: 'assistant', content: DEFAULT_GREETING, timestamp: Date.now() }],
+            };
+          }
+        } catch (error) {
+          console.error("Error parsing saved TA state:", error);
+          sessionStorage.removeItem(TA_SESSION_STATE_KEY); // Clear corrupted state
+        }
+      }
+    }
+    return {
+      isOpen: false,
+      messages: [{ id: uuidv4(), role: 'assistant', content: DEFAULT_GREETING, timestamp: Date.now() }],
+    };
+  };
+
+  const [initialLoadedState] = useState(loadInitialState); // Load only once
+
   // Basic state
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [isOpen, setIsOpen] = useState<boolean>(initialLoadedState.isOpen);
+  const [messages, setMessages] = useState<Message[]>(initialLoadedState.messages);
   const [isTyping, setIsTyping] = useState(false);
   const [hasNotification] = useState(false);
 
   // Search state
-  const [isSearchMode, setIsSearchMode] = useState(false);
+  const [isSearchMode, setIsSearchMode] = useState(false); // Not persisting search mode for now
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -82,19 +115,49 @@ export function TeacherAssistantProvider({ children }: TeacherAssistantProviderP
     []
   );
 
-  // Initialize with greeting message
+  // Save state to sessionStorage when it changes
   useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([
-        {
-          id: uuidv4(),
-          role: 'assistant',
-          content: DEFAULT_GREETING,
-          timestamp: Date.now()
+    if (typeof window !== 'undefined') {
+      try {
+        // Only save if there are messages beyond the initial greeting or if it's open,
+        // or if messages array is empty (to persist a cleared chat).
+        // isOpen change should always be saved.
+        if (messages.length > 1 ||
+            (messages.length === 1 && messages[0].content !== DEFAULT_GREETING) ||
+            isOpen ||
+            (messages.length === 0 && sessionStorage.getItem(TA_SESSION_STATE_KEY) !== null) // Persist empty if was previously saved
+           ) {
+          const stateToSave = {
+            isOpen,
+            messages: messages.slice(-MAX_CONVERSATION_HISTORY), // Save only limited history
+            // Not saving: isSearchMode, searchQuery (can be added if desired)
+          };
+          sessionStorage.setItem(TA_SESSION_STATE_KEY, JSON.stringify(stateToSave));
+        } else if (messages.length === 1 && messages[0].content === DEFAULT_GREETING && !isOpen) {
+          // If it's just the default state (closed, only greeting), clear storage
+          // This prevents saving the default state before any user interaction.
+          sessionStorage.removeItem(TA_SESSION_STATE_KEY);
         }
-      ]);
+      } catch (error) {
+        console.error("Error saving TA state to sessionStorage:", error);
+      }
     }
+  }, [isOpen, messages]);
+
+
+  // Initialize with greeting message if, after attempting to load from session, messages are still empty.
+  useEffect(() => {
+    // This check ensures that if `loadInitialState` results in an empty messages array
+    // (e.g. sessionStorage was cleared or corrupted and then removed), we set the default greeting.
+    if (messages.length === 0) {
+        setMessages([
+            { id: uuidv4(), role: 'assistant', content: DEFAULT_GREETING, timestamp: Date.now() }
+        ]);
+    }
+  // Ensure this effect runs only if the messages state (which could be from session) is truly empty.
+  // initialLoadedState.messages is stable after first render, so messages.length is the key dependency.
   }, [messages.length]);
+
 
   // Track session start
   useEffect(() => {

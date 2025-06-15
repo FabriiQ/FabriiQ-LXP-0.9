@@ -29,6 +29,9 @@ const syncListeners: SyncListener[] = [];
 // Sync in progress flag
 let isSyncInProgress = false;
 
+// Lock name for cross-tab synchronization
+const SYNC_LOCK_NAME = 'teacher_data_sync_lock';
+
 /**
  * Check if the device is online
  */
@@ -69,161 +72,138 @@ function notifySyncListeners(status: SyncStatus, progress?: number): void {
  * @param forceSync Force sync even if already in progress
  */
 export async function syncTeacherData(forceSync: boolean = false): Promise<SyncResult> {
-  // If already syncing and not forced, return
-  if (isSyncInProgress && !forceSync) {
-    return {
-      status: SyncStatus.SYNCING,
-      syncedCount: 0,
-      failedCount: 0,
-      errors: []
-    };
-  }
-
-  // If offline, return error
   if (!isOnline()) {
-    return {
-      status: SyncStatus.ERROR,
-      syncedCount: 0,
-      failedCount: 0,
-      errors: [new Error('Cannot sync while offline')]
-    };
+    return { status: SyncStatus.ERROR, syncedCount: 0, failedCount: 0, errors: [new Error('Cannot sync while offline')] };
   }
 
-  // Set syncing status
-  isSyncInProgress = true;
-  notifySyncListeners(SyncStatus.SYNCING, 0);
-
-  // Start sync time tracking
-  const syncStartTime = Date.now();
-
-  try {
-    // Get unsynced data with error handling
-    let unsyncedAttendance = [];
-    let unsyncedAssessments = [];
-
-    try {
-      unsyncedAttendance = await getUnsyncedAttendance();
-    } catch (error) {
-      console.error('Error getting unsynced attendance:', error);
-      // Continue with empty array instead of failing the entire sync
-      trackOfflineSyncError(String(error), 'attendance-fetch');
+  // navigator.locks.request returns null if the lock is not granted (due to ifAvailable: true)
+  const lockAcquiredResult = await navigator.locks.request(SYNC_LOCK_NAME, { ifAvailable: true }, async (lock) => {
+    if (!lock) {
+      // This callback is not executed if the lock is not acquired with ifAvailable: true.
+      // This path should ideally not be hit if ifAvailable: true is correctly handled by the API.
+      // If it were to be hit, it means the lock was granted but then immediately became null (edge case).
+      console.log('[Sync] Lock granted but then became null (unexpected). Returning IDLE.');
+      // Notifying listeners or returning specific error might be too aggressive if this path is truly an edge case.
+      // The outer check (lockAcquiredResult === null) is the primary gate for non-acquisition.
+      return { status: SyncStatus.IDLE, syncedCount: 0, failedCount: 0, errors: [new Error('Sync lock issue (granted then null).')] };
     }
 
-    try {
-      unsyncedAssessments = await getUnsyncedAssessments();
-    } catch (error) {
-      console.error('Error getting unsynced assessments:', error);
-      // Continue with empty array instead of failing the entire sync
-      trackOfflineSyncError(String(error), 'assessment-fetch');
+    // Lock is acquired
+    console.log('[Sync] Acquired sync lock.');
+
+    if (isSyncInProgress && !forceSync) {
+      console.log('[Sync] Sync already in progress in this tab.');
+      // Lock will be released as we exit this callback.
+      return { status: SyncStatus.SYNCING, syncedCount: 0, failedCount: 0, errors: [] };
     }
 
-    const totalItems = unsyncedAttendance.length + unsyncedAssessments.length;
+    isSyncInProgress = true;
+    notifySyncListeners(SyncStatus.SYNCING, 0);
+    const syncStartTime = Date.now();
+    let currentSyncedCount = 0;
+    let currentFailedCount = 0;
+    const currentErrors: Error[] = [];
+    let totalItemsToProcess = 0; // For accurate failure count in general catch
 
-    // Track sync start with analytics
-    trackOfflineSyncStart(totalItems);
+    try {
+      let unsyncedAttendance: any[] = []; // Use any[] or specific type if available
+      try {
+        unsyncedAttendance = await getUnsyncedAttendance();
+      } catch (e) {
+        console.error('Error getting unsynced attendance:', e);
+        trackOfflineSyncError(String(e), 'attendance-fetch');
+        // Optionally, add to currentErrors here if this should stop the whole sync
+      }
 
-    // If no unsynced data, return success
-    if (totalItems === 0) {
-      isSyncInProgress = false;
-      notifySyncListeners(SyncStatus.SUCCESS, 100);
+      let unsyncedAssessments: any[] = []; // Use any[] or specific type
+      try {
+        unsyncedAssessments = await getUnsyncedAssessments();
+      } catch (e) {
+        console.error('Error getting unsynced assessments:', e);
+        trackOfflineSyncError(String(e), 'assessment-fetch');
+        // Optionally, add to currentErrors
+      }
 
-      // Track sync complete with analytics (0 items)
-      trackOfflineSyncComplete(0, 0, Date.now() - syncStartTime);
+      totalItemsToProcess = unsyncedAttendance.length + unsyncedAssessments.length;
+      trackOfflineSyncStart(totalItemsToProcess);
 
+      if (totalItemsToProcess === 0) {
+        notifySyncListeners(SyncStatus.SUCCESS, 100);
+        trackOfflineSyncComplete(0, 0, Date.now() - syncStartTime);
+        return { status: SyncStatus.SUCCESS, syncedCount: 0, failedCount: 0, errors: [] };
+      }
+
+      let processedItems = 0;
+      // Sync attendance
+      for (const attendance of unsyncedAttendance) {
+        processedItems++;
+        notifySyncListeners(SyncStatus.SYNCING, Math.round((processedItems / totalItemsToProcess) * 100));
+        try {
+          await syncAttendanceToServer(attendance);
+          await markAttendanceAsSynced(attendance.id);
+          currentSyncedCount++;
+        } catch (e) {
+          currentFailedCount++;
+          const err = e instanceof Error ? e : new Error(String(e));
+          currentErrors.push(err);
+          trackOfflineSyncError(err.message, 'attendance', attendance.id);
+        }
+      }
+      // Sync assessments
+      for (const assessment of unsyncedAssessments) {
+        processedItems++;
+        notifySyncListeners(SyncStatus.SYNCING, Math.round((processedItems / totalItemsToProcess) * 100));
+        try {
+          await syncAssessmentToServer(assessment);
+          await markAssessmentAsSynced(assessment.id);
+          currentSyncedCount++;
+        } catch (e) {
+          currentFailedCount++;
+          const err = e instanceof Error ? e : new Error(String(e));
+          currentErrors.push(err);
+          trackOfflineSyncError(err.message, 'assessment', assessment.id);
+        }
+      }
+
+      const finalStatus = currentFailedCount > 0 ? SyncStatus.ERROR : SyncStatus.SUCCESS;
+      notifySyncListeners(finalStatus, 100);
+      trackOfflineSyncComplete(currentSyncedCount, currentFailedCount, Date.now() - syncStartTime);
+      return { status: finalStatus, syncedCount: currentSyncedCount, failedCount: currentFailedCount, errors: currentErrors };
+
+    } catch (error) { // Catch general errors within the locked operation
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      console.error('[Sync] General error during sync operation inside lock:', errorObj);
+      notifySyncListeners(SyncStatus.ERROR);
+      trackOfflineSyncError(errorObj.message, 'general-lock');
+      currentErrors.push(errorObj);
+      // Determine failed count more accurately if possible, or assume all remaining items failed.
       return {
-        status: SyncStatus.SUCCESS,
-        syncedCount: 0,
-        failedCount: 0,
-        errors: []
+        status: SyncStatus.ERROR,
+        syncedCount: currentSyncedCount,
+        // If totalItemsToProcess was fetched, use it, otherwise this might be inaccurate
+        failedCount: totalItemsToProcess - currentSyncedCount,
+        errors: currentErrors
       };
+    } finally {
+      isSyncInProgress = false; // Reset for this tab
+      console.log('[Sync] Sync operation finished. Lock released implicitly as callback scope ends.');
     }
+  }); // End of navigator.locks.request callback
 
-    // Sync data
-    let syncedCount = 0;
-    let failedCount = 0;
-    const errors: Error[] = [];
-    let processedItems = 0;
-
-    // Sync attendance
-    for (const attendance of unsyncedAttendance) {
-      try {
-        // Update progress
-        processedItems++;
-        const progress = Math.round((processedItems / totalItems) * 100);
-        notifySyncListeners(SyncStatus.SYNCING, progress);
-
-        // Send to server
-        await syncAttendanceToServer(attendance);
-
-        // Mark as synced
-        await markAttendanceAsSynced(attendance.id);
-        syncedCount++;
-      } catch (error) {
-        failedCount++;
-        const errorObj = error instanceof Error ? error : new Error(String(error));
-        errors.push(errorObj);
-
-        // Track sync error with analytics
-        trackOfflineSyncError(errorObj.message, 'attendance', attendance.id);
-      }
-    }
-
-    // Sync assessments
-    for (const assessment of unsyncedAssessments) {
-      try {
-        // Update progress
-        processedItems++;
-        const progress = Math.round((processedItems / totalItems) * 100);
-        notifySyncListeners(SyncStatus.SYNCING, progress);
-
-        // Send to server
-        await syncAssessmentToServer(assessment);
-
-        // Mark as synced
-        await markAssessmentAsSynced(assessment.id);
-        syncedCount++;
-      } catch (error) {
-        failedCount++;
-        const errorObj = error instanceof Error ? error : new Error(String(error));
-        errors.push(errorObj);
-
-        // Track sync error with analytics
-        trackOfflineSyncError(errorObj.message, 'assessment', assessment.id);
-      }
-    }
-
-    // Set sync status
-    const status = failedCount > 0 ? SyncStatus.ERROR : SyncStatus.SUCCESS;
-    notifySyncListeners(status, 100);
-
-    // Track sync complete with analytics
-    trackOfflineSyncComplete(syncedCount, failedCount, Date.now() - syncStartTime);
-
-    // Reset sync in progress flag
-    isSyncInProgress = false;
-
+  if (lockAcquiredResult === null) {
+    // Lock was not acquired because another tab holds it (ifAvailable: true was used)
+    console.log('[Sync] Lock not acquired, another tab is likely syncing.');
+    // Potentially notify listeners that sync was skipped due to lock
+    // notifySyncListeners(SyncStatus.IDLE); // Or a new status like SKIPPED
     return {
-      status,
-      syncedCount,
-      failedCount,
-      errors
-    };
-  } catch (error) {
-    // Set error status
-    notifySyncListeners(SyncStatus.ERROR);
-
-    // Reset sync in progress flag
-    isSyncInProgress = false;
-
-    // Track sync error with analytics
-    const errorObj = error instanceof Error ? error : new Error(String(error));
-    trackOfflineSyncError(errorObj.message, 'general');
-
-    return {
-      status: SyncStatus.ERROR,
+      status: SyncStatus.IDLE, // Or a new status like 'SKIPPED_CONCURRENCY'
       syncedCount: 0,
       failedCount: 0,
-      errors: [errorObj]
+      errors: [new Error('Sync lock not acquired; another tab may be syncing.')]
     };
   }
+
+  // If lockAcquiredResult is not null, it means the lock was acquired and the callback executed.
+  // The result of the callback (a SyncResult object) is in lockAcquiredResult.
+  return lockAcquiredResult; // This will be the SyncResult from the callback (or the SYNCING/IDLE from within the lock)
 }

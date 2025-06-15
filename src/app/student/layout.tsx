@@ -4,7 +4,7 @@ import { StudentShell } from '@/components/ui/specialized/role-based/student-she
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useEffect } from 'react';
-import { registerServiceWorker } from '@/utils/register-sw';
+import { registerSpecificServiceWorker } from '@/utils/register-sw'; // Updated import
 import { GlobalLoadingIndicator } from '@/components/ui/loading-indicator';
 import { ContextChangeToast } from '@/components/ui/context-toast';
 import { isClassSpecificPage } from '@/utils/path-utils';
@@ -21,7 +21,7 @@ export default function StudentLayout({
 
   // Register service worker for offline support
   useEffect(() => {
-    registerServiceWorker();
+    registerSpecificServiceWorker('/sw.js'); // Call with student SW path
   }, []);
 
   // Check if user is authenticated and is a student

@@ -1,15 +1,15 @@
 'use client';
 
-export function registerServiceWorker() {
+export function registerSpecificServiceWorker(swPath: string) {
   if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker
-        .register('/sw.js')
+        .register(swPath) // Use the provided path
         .then(registration => {
-          console.log('Service Worker registered: ', registration);
+          console.log(`Service Worker ${swPath} registered: `, registration);
         })
         .catch(registrationError => {
-          console.log('Service Worker registration failed: ', registrationError);
+          console.log(`Service Worker ${swPath} registration failed: `, registrationError);
         });
     });
   }

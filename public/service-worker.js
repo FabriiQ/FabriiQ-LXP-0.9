@@ -1,238 +1,227 @@
-// Service Worker for Activity Offline Support
-const CACHE_NAME = 'activity-cache-v1';
-const ACTIVITY_DATA_CACHE = 'activity-data-v1';
-const API_CACHE = 'activity-api-v1';
+// Service Worker for Activity Offline Support & tRPC Caching
+
+// Cache names - use distinct names for different caches for easier management
+const CACHE_NAME = 'static-assets-cache-v1'; // For precached static assets
+const ACTIVITY_DATA_CACHE = 'activity-data-cache-v1'; // For specific activity data fetched by app
+const API_CACHE = 'api-cache-v1'; // For tRPC GET queries and other API responses
+const RUNTIME_CACHE = 'runtime-dynamic-cache-v1'; // For dynamically cached HTML/assets during runtime
 
 // Assets to cache immediately on service worker install
 const PRECACHE_ASSETS = [
-  '/',
-  '/index.html',
-  '/static/css/main.css',
-  '/static/js/main.js',
-  '/static/js/bundle.js',
+  '/', // Often maps to index.html
+  // '/index.html', // Explicitly if needed, depends on server config
+  // '/static/css/main.css', // Example, adjust to actual build output
+  // '/static/js/main.js',   // Example, adjust to actual build output
   '/manifest.json',
   '/favicon.ico',
-  '/offline.html'
+  '/offline.html' // Fallback offline page
+  // Add other critical static assets (JS chunks, CSS files, key images/icons)
 ];
 
-// API routes to cache
-const API_ROUTES = [
-  '/api/activities',
-  '/api/subjects',
-  '/api/classes'
-];
-
-// Install event - precache static assets
 self.addEventListener('install', event => {
+  console.log('[Service Worker] Install event');
   event.waitUntil(
     Promise.all([
-      // Cache static assets
       caches.open(CACHE_NAME).then(cache => {
-        console.log('Precaching static assets');
+        console.log('[Service Worker] Precaching static assets');
         return cache.addAll(PRECACHE_ASSETS);
       }),
-      
-      // Cache API routes
-      caches.open(API_CACHE).then(cache => {
-        console.log('Precaching API routes');
-        return Promise.all(
-          API_ROUTES.map(url => 
-            fetch(url)
-              .then(response => {
-                if (response.ok) {
-                  return cache.put(url, response);
-                }
-              })
-              .catch(error => console.error(`Failed to cache ${url}:`, error))
-          )
-        );
-      })
+      // No specific API pre-caching here for now, can be added if specific tRPC queries are safe to pre-cache
     ])
-    .then(() => self.skipWaiting())
+    .then(() => {
+       console.log('[Service Worker] Static assets precached, skipWaiting.');
+       return self.skipWaiting(); // Activate new SW immediately
+    })
+    .catch(error => {
+        console.error('[Service Worker] Precaching failed:', error);
+    })
   );
 });
 
-// Activate event - clean up old caches
 self.addEventListener('activate', event => {
-  const currentCaches = [CACHE_NAME, ACTIVITY_DATA_CACHE, API_CACHE];
-  
+  console.log('[Service Worker] Activate event');
+  const currentCaches = [CACHE_NAME, ACTIVITY_DATA_CACHE, API_CACHE, RUNTIME_CACHE];
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (!currentCaches.includes(cacheName)) {
-            console.log('Deleting old cache:', cacheName);
+            console.log('[Service Worker] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
+    }).then(() => {
+       console.log('[Service Worker] Old caches deleted, clients claimed.');
+       return self.clients.claim(); // Take control of uncontrolled clients
     })
-    .then(() => self.clients.claim())
+    .catch(error => {
+        console.error('[Service Worker] Activation failed:', error);
+    })
   );
 });
 
-// Fetch event - serve from cache or network
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
-  
-  // Handle API requests
-  if (event.request.url.includes('/api/')) {
+
+  // Only process requests from our origin (or specific CDNs if needed)
+  if (url.origin !== self.location.origin) {
+    // console.log('[Service Worker] Ignoring cross-origin request:', event.request.url);
+    return; // Let browser handle it
+  }
+
+  // Handle tRPC API requests (network-first for GET, network-only for POST/mutations)
+  if (url.pathname.startsWith('/api/trpc/')) {
+    // console.log('[Service Worker] Handling tRPC API request:', event.request.url, event.request.method);
     event.respondWith(handleApiRequest(event.request));
     return;
   }
   
-  // Handle activity data requests
-  if (event.request.url.includes('/activities/')) {
+  // Example: Handle other specific /api/ routes (e.g., auth, non-tRPC file uploads)
+  // if (url.pathname.startsWith('/api/auth/')) {
+  //   // Use a specific strategy for auth, often network-only
+  //   event.respondWith(fetch(event.request));
+  //   return;
+  // }
+
+  // Handle activity data requests (cache-first) - if these are distinct non-tRPC paths
+  // e.g., /data/activities/some-id.json
+  if (url.pathname.includes('/activities/') && !url.pathname.startsWith('/api/')) {
+    // console.log('[Service Worker] Handling Activity Data request:', event.request.url);
     event.respondWith(handleActivityDataRequest(event.request));
     return;
   }
   
-  // Handle static asset requests
-  event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      
-      return fetch(event.request)
+  // Handle HTML navigation and direct HTML requests (Network-first, then cache, then offline fallback)
+  if (event.request.mode === 'navigate' ||
+      (event.request.method === 'GET' && event.request.headers.get('accept')?.includes('text/html'))) {
+    // console.log('[Service Worker] Handling Navigate/HTML request:', event.request.url);
+    event.respondWith(
+      fetch(event.request)
         .then(response => {
-          // Don't cache non-successful responses
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
+          if (response.ok) {
+            const resClone = response.clone();
+            caches.open(RUNTIME_CACHE)
+              .then(cache => cache.put(event.request, resClone))
+              .catch(err => console.warn('[Service Worker] Error caching HTML response:', err));
           }
-          
-          // Clone the response as it can only be consumed once
-          const responseToCache = response.clone();
-          
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseToCache);
-          });
-          
           return response;
         })
-        .catch(error => {
-          console.error('Fetch failed:', error);
-          
-          // Return offline page for navigation requests
-          if (event.request.mode === 'navigate') {
-            return caches.match('/offline.html');
+        .catch(() => {
+          // console.log('[Service Worker] Network failed for HTML, trying cache for:', event.request.url);
+          return caches.match(event.request)
+            .then(cachedResponse => {
+                if (cachedResponse) return cachedResponse;
+                // console.log('[Service Worker] No cache for HTML, serving offline page for:', event.request.url);
+                return caches.match('/offline.html');
+            })
+        })
+    );
+    return;
+  }
+
+  // Default: Cache-first with stale-while-revalidate for other GET requests (static assets like CSS, JS, images)
+  if (event.request.method === 'GET') {
+    // console.log('[Service Worker] Handling Static Asset request:', event.request.url);
+    event.respondWith(
+      caches.match(event.request).then(cachedResponse => {
+        const fetchPromise = fetch(event.request).then(networkResponse => {
+          if (networkResponse && networkResponse.ok) {
+            const resClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, resClone));
           }
-          
-          return new Response('Network error', { status: 503, statusText: 'Service Unavailable' });
+          return networkResponse;
+        }).catch(err => {
+          // console.warn('[Service Worker] Stale-while-revalidate fetch failed for:', event.request.url, err);
+          // If fetch fails (e.g. offline) and we served from cache, this error is not critical to the user here.
+          // If not in cache initially, this error will propagate to the main catch.
         });
-    })
-  );
+
+        if (cachedResponse) {
+          // Return cached response immediately
+          return cachedResponse;
+        }
+        // If not in cache, wait for the network response
+        return fetchPromise;
+      }).catch(() => {
+          // Fallback for other assets if needed, e.g., placeholder image
+          if (event.request.destination === 'image') {
+              // return caches.match('/placeholder-image.png'); // Ensure placeholder is in PRECACHE_ASSETS
+          }
+          // console.warn('[Service Worker] Asset not in cache and network fetch failed for:', event.request.url);
+          return new Response('Network error and asset not in cache.', { status: 404, statusText: 'Not Found' });
+      })
+    );
+    return;
+  }
+
+  // For non-GET requests that weren't handled (e.g. some specific POSTs not to /api/trpc),
+  // just fetch from network without caching.
+  // console.log('[Service Worker] Unhandled request (non-GET or specific path), fetching normally:', event.request.url);
+  // event.respondWith(fetch(event.request)); // Or simply don't call event.respondWith to let browser handle.
 });
 
-// Handle API requests with network-first strategy
-async function handleApiRequest(request) {
+
+// handleApiRequest function (Network-first for GET, network-only for non-GET/mutations)
+async function handleApiRequest(request: Request) {
   try {
-    // Try network first
     const networkResponse = await fetch(request);
-    
-    // Clone and cache successful responses
-    if (networkResponse && networkResponse.ok) {
-      const responseToCache = networkResponse.clone();
+    // For GET requests, cache the response if successful
+    if (request.method === 'GET' && networkResponse && networkResponse.ok) {
       const cache = await caches.open(API_CACHE);
-      cache.put(request, responseToCache);
+      // request.clone() is not strictly necessary for cache.put's first arg if request is not used again for body consumption.
+      // networkResponse.clone() is essential as response body can be consumed only once.
+      await cache.put(request, networkResponse.clone());
     }
-    
     return networkResponse;
   } catch (error) {
-    console.log('Falling back to cache for API request:', request.url);
-    
-    // If network fails, try cache
-    const cachedResponse = await caches.match(request);
+    // console.warn('[Service Worker] Network failed for API request:', request.url, error);
+    if (request.method === 'GET') {
+      const cachedResponse = await caches.match(request);
+      if (cachedResponse) {
+        // console.log('[Service Worker] Serving API request from cache:', request.url);
+        return cachedResponse;
+      }
+    }
+    // console.error('[Service Worker] API request failed, no cache fallback for non-GET or not in cache.');
+    return new Response(JSON.stringify({ error: 'Network error and no cache fallback available.', details: (error instanceof Error ? error.message : String(error)) }), {
+      status: 503, // Service Unavailable
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// handleActivityDataRequest function (Cache-first) - For specific, non-tRPC data paths
+async function handleActivityDataRequest(request: Request) {
+  try {
+    const cache = await caches.open(ACTIVITY_DATA_CACHE);
+    const cachedResponse = await cache.match(request);
     if (cachedResponse) {
+      // console.log('[Service Worker] Serving activity data from cache:', request.url);
       return cachedResponse;
     }
     
-    // If no cache, return error response
-    return new Response(JSON.stringify({ error: 'Network error', offline: true }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-}
-
-// Handle activity data requests with cache-first strategy
-async function handleActivityDataRequest(request) {
-  // Try cache first for activity data
-  const cachedResponse = await caches.match(request);
-  if (cachedResponse) {
-    return cachedResponse;
-  }
-  
-  // If not in cache, try network
-  try {
+    // console.log('[Service Worker] Activity data not in cache, fetching from network:', request.url);
     const networkResponse = await fetch(request);
-    
-    // Clone and cache successful responses
     if (networkResponse && networkResponse.ok) {
-      const responseToCache = networkResponse.clone();
-      const cache = await caches.open(ACTIVITY_DATA_CACHE);
-      cache.put(request, responseToCache);
+      await cache.put(request, networkResponse.clone());
     }
-    
     return networkResponse;
   } catch (error) {
-    console.error('Failed to fetch activity data:', error);
-    
-    // Return error response
-    return new Response(JSON.stringify({ error: 'Failed to load activity data', offline: true }), {
-      status: 503,
+    // console.error('[Service Worker] Activity data request failed (network and cache):', request.url, error);
+    return new Response(JSON.stringify({ error: 'Failed to load activity data.', details: (error instanceof Error ? error.message : String(error)) }), {
+      status: 503, // Service Unavailable
       headers: { 'Content-Type': 'application/json' }
     });
   }
 }
 
-// Sync event - handle background syncing
-self.addEventListener('sync', event => {
-  if (event.tag === 'activity-results-sync') {
-    event.waitUntil(syncActivityResults());
-  }
-});
-
-// Function to sync activity results from IndexedDB to server
-async function syncActivityResults() {
-  // This will be implemented in the IndexedDB module
-  // The service worker will just trigger the sync event
-  console.log('Syncing activity results...');
-  
-  // Broadcast sync status to clients
-  self.clients.matchAll().then(clients => {
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'SYNC_STATUS',
-        status: 'syncing'
-      });
-    });
-  });
-  
-  // In a real implementation, we would:
-  // 1. Open IndexedDB
-  // 2. Get all pending results
-  // 3. Send them to the server
-  // 4. Mark them as synced in IndexedDB
-  // 5. Notify clients of sync completion
-  
-  // For now, just simulate a successful sync after a delay
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  // Broadcast sync completion to clients
-  self.clients.matchAll().then(clients => {
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'SYNC_STATUS',
-        status: 'completed'
-      });
-    });
-  });
-}
-
-// Message event - handle messages from clients
+// Message event - handle messages from clients (e.g., SKIP_WAITING)
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[Service Worker] Received SKIP_WAITING message, calling self.skipWaiting().');
     self.skipWaiting();
   }
 });
+
+// Note: The 'sync' event listener for 'activity-results-sync' has been removed as requested.
