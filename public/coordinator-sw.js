@@ -1,138 +1,158 @@
 // Service Worker for Coordinator Portal
-const CACHE_NAME = 'coordinator-portal-cache-v1';
-const RUNTIME_CACHE = 'runtime-cache';
-const API_CACHE = 'api-cache';
+const CACHE_NAME = 'coordinator-portal-cache-v1'; // Static assets for coordinator
+const RUNTIME_CACHE = 'coordinator-runtime-cache-v1'; // Dynamic content (HTML, etc.)
+const API_CACHE = 'coordinator-api-cache-v1'; // For API GET requests
 
-// Resources to cache on install
-const PRECACHE_URLS = [
-  '/admin/coordinator',
-  '/admin/coordinator/dashboard',
-  '/offline.html'
+// Resources to cache on install - Adjust to actual coordinator portal paths
+const PRECACHE_ASSETS = [ // Changed from PRECACHE_URLS to PRECACHE_ASSETS as per new code
+  // '/', // Careful with '/' if it serves dynamic content; prefer specific static HTML file if any
+  '/admin/coordinator', // Assuming this is an entry point HTML
+  '/admin/coordinator/dashboard', // Another potential entry point
+  '/offline.html', // Generic offline fallback page
+  // Add other critical static assets: manifest.json, favicon, key CSS/JS if not hashed
+  // e.g. '/manifest-coordinator.json', '/favicon-coordinator.ico'
 ];
 
-// API routes to cache
-const API_ROUTES = [
-  '/api/trpc/analytics.getTeacherPerformance',
-  '/api/trpc/teacher.getAllTeachers',
-  '/api/trpc/student.getAllStudents'
-];
+// API_ROUTES array removed as per new strategy (no API pre-caching)
 
 // Install event - precache static assets
 self.addEventListener('install', event => {
   event.waitUntil(
-    Promise.all([
-      // Cache static assets
-      caches.open(CACHE_NAME).then(cache => {
-        console.log('Precaching static assets');
-        return cache.addAll(PRECACHE_URLS);
-      }),
-      
-      // Cache API routes
-      caches.open(API_CACHE).then(cache => {
-        console.log('Precaching API routes');
-        return Promise.all(
-          API_ROUTES.map(url => 
-            fetch(url)
-              .then(response => {
-                if (response.ok) {
-                  return cache.put(url, response);
-                }
-              })
-              .catch(error => console.error(`Failed to cache ${url}:`, error))
-          )
-        );
-      })
-    ])
-    .then(() => self.skipWaiting())
-  );
-});
-
-// Fetch event - serve from cache or network
-self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
-  
-  // Handle API requests
-  if (event.request.url.includes('/api/')) {
-    event.respondWith(handleApiRequest(event.request));
-    return;
-  }
-  
-  // Handle static asset requests
-  event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      
-      return fetch(event.request)
-        .then(response => {
-          // Don't cache non-successful responses
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
-          
-          // Clone the response as it can only be consumed once
-          const responseToCache = response.clone();
-          
-          caches.open(RUNTIME_CACHE).then(cache => {
-            cache.put(event.request, responseToCache);
-          });
-          
-          return response;
-        })
-        .catch(error => {
-          console.error('Fetch failed:', error);
-          
-          // Return offline page for navigation requests
-          if (event.request.mode === 'navigate') {
-            return caches.match('/offline.html');
-          }
-          
-          return new Response('Network error', { status: 503, statusText: 'Service Unavailable' });
-        });
+    caches.open(CACHE_NAME).then(cache => { // Use CACHE_NAME for static assets
+      console.log('[Coordinator SW] Precaching static assets');
+      return cache.addAll(PRECACHE_ASSETS); // Use PRECACHE_ASSETS
+    })
+    // Removed API pre-caching block
+    .then(() => {
+      console.log('[Coordinator SW] Static assets precached, calling skipWaiting.');
+      return self.skipWaiting();
+    })
+    .catch(error => {
+      console.error('[Coordinator SW] Precaching failed:', error);
     })
   );
 });
 
-// Handle API requests
-async function handleApiRequest(request) {
-  // Try to get from cache first
-  const cachedResponse = await caches.match(request);
-  
-  if (cachedResponse) {
-    // Return cached response and update cache in background
-    fetch(request)
-      .then(response => {
-        if (response.ok) {
-          const responseToCache = response.clone();
-          caches.open(API_CACHE).then(cache => {
-            cache.put(request, responseToCache);
-          });
-        }
-      })
-      .catch(error => console.error('Background fetch failed:', error));
-    
-    return cachedResponse;
+// Fetch event - new strategy
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+
+  // Only process requests from our origin
+  if (url.origin !== self.location.origin) {
+    return;
   }
   
-  // If not in cache, try network
+  // Handle API requests (now using the updated handleApiRequest)
+  if (url.pathname.startsWith('/api/')) { // Ensure this path correctly captures all tRPC and other API calls
+    event.respondWith(handleApiRequest(event.request));
+    return;
+  }
+  
+  // Handle static asset requests (HTML, CSS, JS, images etc.)
+  // For HTML pages - network first, then cache, then offline fallback
+  if (event.request.mode === 'navigate' || (event.request.method === 'GET' && event.request.headers.get('accept')?.includes('text/html'))) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response.ok) {
+            const resClone = response.clone();
+            caches.open(RUNTIME_CACHE)
+              .then(cache => cache.put(event.request, resClone));
+          }
+          return response;
+        })
+        .catch(async () => { // Added async here
+          const cached = await caches.match(event.request);
+          return cached || caches.match('/offline.html'); // Ensure offline.html is in PRECACHE_ASSETS
+        })
+    );
+    return;
+  }
+
+  // Default: Cache-first with stale-while-revalidate for other GET requests (static assets)
+  if (event.request.method === 'GET') {
+    event.respondWith(
+      caches.match(event.request).then(cachedResponse => {
+        const networked = fetch(event.request).then(networkResponse => {
+          if (networkResponse && networkResponse.ok) {
+            const resClone = networkResponse.clone();
+            // Static assets that are not part of PRECACHE_ASSETS but fetched at runtime
+            // can also go into RUNTIME_CACHE or CACHE_NAME depending on strategy.
+            // Using RUNTIME_CACHE here for dynamically fetched static assets.
+            caches.open(RUNTIME_CACHE).then(cache => cache.put(event.request, resClone));
+          }
+          return networkResponse;
+        }).catch(() => {
+          // console.warn('[Coordinator SW] Stale-while-revalidate fetch failed, serving stale if present.');
+        });
+
+        return cachedResponse || networked; // Return cached if available, else the network promise
+      }).catch(() => {
+          // Fallback for other assets if needed, e.g., placeholder image
+          if (event.request.destination === 'image') {
+              // return caches.match('/placeholder-image.png'); // Make sure placeholder exists in PRECACHE_ASSETS
+          }
+          return new Response('Network error and not in cache.', { status: 404, statusText: 'Not Found' });
+      })
+    );
+    return;
+  }
+});
+
+// Updated handleApiRequest function
+async function handleApiRequest(request) {
+  // For non-GET requests (mutations: POST, PUT, DELETE, etc.), always try network and do not cache response for serving.
+  if (request.method !== 'GET') {
+    // console.log('[Coordinator SW] Handling non-GET API request (network-only):', request.url);
+    try {
+      const networkResponse = await fetch(request.clone()); // Clone request if its body is to be consumed by SW logic (not typical here)
+      return networkResponse;
+    } catch (error) {
+      // console.error('[Coordinator SW] Network error for non-GET API request:', request.url, error);
+      return new Response(JSON.stringify({ error: 'Network error during API operation.', details: error.message }), {
+        status: 503, // Service Unavailable
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
+  // For GET requests: Network-first, then cache strategy.
+  // console.log('[Coordinator SW] Handling GET API request (network-first):', request.url);
   try {
     const networkResponse = await fetch(request);
     
-    // Clone and cache successful responses
+    // If network request is successful, cache it and return it.
     if (networkResponse && networkResponse.ok) {
-      const responseToCache = networkResponse.clone();
+      // console.log('[Coordinator SW] API request successful from network, caching and returning:', request.url);
       const cache = await caches.open(API_CACHE);
-      cache.put(request, responseToCache);
+      // Clone the response to cache it as it can only be consumed once.
+      // Clone the request as well if you are using it as a key and it might be modified.
+      await cache.put(request.clone(), networkResponse.clone());
+      return networkResponse;
     }
-    
-    return networkResponse;
+    // If networkResponse is not ok (e.g. 404, 500 but still a response from server),
+    // don't cache, but return it. Let the application handle server errors.
+    // However, if the fetch itself throws (offline, network partition), it goes to catch.
+    if (networkResponse) {
+        // console.warn('[Coordinator SW] Network request for API was not ok, not caching:', request.url, networkResponse.status);
+        return networkResponse;
+    }
+    // This part might be unreachable if fetch throws on non-ok, but as a safeguard:
+    throw new Error(`Network request failed with status ${networkResponse?.status || 'unknown'}`);
+
   } catch (error) {
-    console.error('Failed to fetch API data:', error);
-    
-    // Return error response
-    return new Response(JSON.stringify({ error: 'Failed to load data', offline: true }), {
-      status: 503,
+    // console.warn('[Coordinator SW] Network failed for API request, trying cache:', request.url, error);
+    // If network fails, try to get the response from the cache.
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      // console.log('[Coordinator SW] Serving API request from cache:', request.url);
+      return cachedResponse;
+    }
+
+    // If not in cache and network failed, return an error response.
+    // console.error('[Coordinator SW] API request failed, no cache fallback:', request.url, error);
+    return new Response(JSON.stringify({ error: 'Failed to load data: Network error and not in cache.', details: error.message }), {
+      status: 503, // Service Unavailable
       headers: { 'Content-Type': 'application/json' }
     });
   }
@@ -153,26 +173,5 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Sync event - handle background sync
-self.addEventListener('sync', event => {
-  if (event.tag === 'coordinator-sync') {
-    event.waitUntil(processSyncQueue());
-  }
-});
-
-// Process sync queue
-async function processSyncQueue() {
-  // This would be implemented to work with the IndexedDB sync queue
-  // For now, just log that sync was triggered
-  console.log('Background sync triggered for coordinator portal');
-  
-  // Send a message to the client to trigger sync
-  self.clients.matchAll().then(clients => {
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'SYNC_TRIGGERED',
-        timestamp: Date.now()
-      });
-    });
-  });
-}
+// The 'sync' event listener and processSyncQueue function have been removed.
+// Client-initiated sync via src/features/coordinator/offline/sync.ts will be the sole method.
