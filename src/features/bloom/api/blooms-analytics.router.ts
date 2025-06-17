@@ -128,13 +128,43 @@ export const bloomsAnalyticsRouter = createTRPCRouter({
       // Parse dates if provided
       const parsedStartDate = startDate ? new Date(startDate) : undefined;
       const parsedEndDate = endDate ? new Date(endDate) : undefined;
+
+      let actualSubjectId: string | undefined = subjectId;
+
+      if (classId && !actualSubjectId) {
+        const classInfo = await ctx.prisma.class.findUnique({
+          where: { id: classId },
+          select: {
+            courseCampus: {
+              select: {
+                course: {
+                  select: {
+                    subjects: {
+                      select: { id: true },
+                      take: 1 // Assuming one primary subject per course for this context
+                    }
+                  }
+                }
+              }
+            }
+          }
+        });
+        if (classInfo?.courseCampus?.course?.subjects?.[0]?.id) {
+          actualSubjectId = classInfo.courseCampus.course.subjects[0].id;
+        } else {
+          // Optional: Handle case where subjectId cannot be derived from classId.
+          // Could throw an error or proceed without subject filtering if appropriate.
+          // For now, we'll let it proceed, and if actualSubjectId remains undefined,
+          // no subject-based filtering will occur unless explicitly passed.
+          console.warn(`Could not derive subjectId for classId: ${classId}`);
+        }
+      }
       
       // Get topic masteries for this student
       const topicMasteries = await ctx.prisma.topicMastery.findMany({
         where: {
           studentId,
-          ...(classId && { class: { id: classId } }),
-          ...(subjectId && { subjectId }),
+          ...(actualSubjectId && { subjectId: actualSubjectId }),
           ...(parsedStartDate && parsedEndDate && {
             updatedAt: {
               gte: parsedStartDate,

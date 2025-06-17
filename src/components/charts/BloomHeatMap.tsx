@@ -72,6 +72,35 @@ export function BloomHeatMap({
     data: Array.isArray(item.data) ? item.data : []
   }));
 
+  // Flatten all data points to check for content and uniformity
+  const allDataPoints = validData.flatMap(series => series.data);
+
+  // Case 1: Series exist but are empty (no data points)
+  if (validData.length > 0 && allDataPoints.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-muted-foreground">No data points to display in the heatmap</p>
+      </div>
+    );
+  }
+
+  // Case 2: All data points have the same y value
+  if (allDataPoints.length > 0) {
+    const allYValues = allDataPoints.map(point => point.y);
+    const firstYValue = allYValues[0];
+    const allValuesAreSame = allYValues.every(value => value === firstYValue);
+
+    if (allValuesAreSame) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <p className="text-muted-foreground">
+            All data values are uniform ({firstYValue}). A continuous color scale cannot be meaningfully applied.
+          </p>
+        </div>
+      );
+    }
+  }
+
   return (
     <div style={{ height }} className={className}>
       {/* @ts-ignore - Ignore type issues with Nivo HeatMap */}

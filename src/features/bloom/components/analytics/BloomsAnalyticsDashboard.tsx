@@ -593,22 +593,43 @@ export function BloomsAnalyticsDashboard({
                 <div className="h-[400px] w-full flex items-center justify-center">
                   <div className="animate-pulse bg-gray-200 h-4/5 w-full rounded-md" />
                 </div>
-              ) : classPerformance ? (
-                <MasteryHeatmap
-                  data={{
+            ) : classPerformance ? (() => {
+              // Prepare data for MasteryHeatmap
+              let masteryHeatmapInputData;
+              if (
+                classPerformance &&
+                classPerformance.studentPerformance &&
+                classPerformance.topicPerformance &&
+                classPerformance.studentPerformance.length > 0 &&
+                classPerformance.topicPerformance.length > 0
+              ) {
+                masteryHeatmapInputData = {
                     studentIds: classPerformance.studentPerformance.map(s => s.studentId),
                     studentNames: classPerformance.studentPerformance.map(s => s.studentName),
                     topicIds: classPerformance.topicPerformance.map(t => t.topicId),
                     topicNames: classPerformance.topicPerformance.map(t => t.topicName),
                     heatmapData: classPerformance.studentPerformance.map(() =>
                       classPerformance.topicPerformance.map(() =>
-                        Math.floor(Math.random() * 101) // Placeholder data - in real implementation, this would use actual data
+                      Math.floor(Math.random() * 101) // Placeholder data
                       )
                     )
-                  }}
+                };
+              } else {
+                masteryHeatmapInputData = {
+                  studentIds: [],
+                  studentNames: [],
+                  topicIds: [],
+                  topicNames: [],
+                  heatmapData: []
+                };
+              }
+              return (
+                <MasteryHeatmap
+                  data={masteryHeatmapInputData}
                   height={400}
                 />
-              ) : (
+              );
+            })() : (
                 <div className="text-center py-6 text-muted-foreground">
                   No mastery data available
                 </div>
