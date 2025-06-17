@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, use } from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { CognitiveBalanceReport, MasteryProgressReport } from '@/features/bloom/components';
 import { useSession } from 'next-auth/react';
@@ -17,7 +17,8 @@ import Link from 'next/link';
 interface BloomReportsPageProps {}
 
 export default function BloomReportsPage({}: BloomReportsPageProps) {
-  const { classId } = use(useParams()) as { classId: string };
+  const params = useParams();
+  const classId = params.classId as string;
   const { data: session, status } = useSession();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('mastery');

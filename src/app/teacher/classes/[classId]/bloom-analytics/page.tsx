@@ -1,6 +1,6 @@
 'use client';
 
-import React, { use } from 'react';
+import React from 'react';
 import { useParams } from 'next/navigation';
 import { BloomsAnalyticsDashboard } from '@/features/bloom/components/analytics';
 import { useSession } from 'next-auth/react';
@@ -15,7 +15,8 @@ import Link from 'next/link';
 interface BloomAnalyticsPageProps {}
 
 export default function BloomAnalyticsPage({}: BloomAnalyticsPageProps) {
-  const { classId } = use(useParams()) as { classId: string };
+  const params = useParams();
+  const classId = params.classId as string;
   const { data: session, status } = useSession();
   const router = useRouter();
 

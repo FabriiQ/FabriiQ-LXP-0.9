@@ -9,8 +9,9 @@ import { vi } from 'vitest';
 // Mock dependencies
 vi.mock('next-auth/react');
 vi.mock('next/navigation', () => ({
-  useParams: vi.fn(),
-  useRouter: vi.fn(() => ({ push: vi.fn() })),
+  ...vi.importActual('next/navigation'), // Import and retain default behavior
+  useParams: vi.fn(), // Mock useParams
+  useRouter: vi.fn(() => ({ push: vi.fn() })), // Mock useRouter
 }));
 vi.mock('@/trpc/react', () => ({
   api: {
@@ -44,25 +45,7 @@ vi.mock('@/features/bloom/components/analytics', () => ({
     </div>
   )),
 }));
-vi.mock('react', async () => {
-    const actualReact = await vi.importActual('react');
-    return {
-        ...actualReact,
-        use: vi.fn((promise) => {
-            // This basic mock for `use` assumes the promise resolves immediately.
-            // For more complex scenarios, you might need to mock its specific behavior.
-            if (promise && typeof promise.then === 'function') {
-                // This is a simplified way to handle promises passed to `use`.
-                // It won't work for all cases, especially those involving suspense.
-                let result;
-                promise.then((val: any) => result = val).catch((e: any) => console.error("Mock `use` error", e));
-                return result;
-            }
-            return promise; // Fallback for non-promise values
-        }),
-    };
-});
-
+// No longer need to mock React.use for useParams
 
 describe('BloomAnalyticsPage', () => {
   const mockUseSession = useSession as jest.Mock;
@@ -84,20 +67,8 @@ describe('BloomAnalyticsPage', () => {
 
   test('Test 1: Renders and uses classId from params, calls dashboard with classId', () => {
     const testClassId = 'test_class_123';
-    (React.use as jest.Mock).mockImplementation((promise) => {
-        if (promise === mockUseParams) { // Check if it's the useParams promise
-            return { classId: testClassId };
-        }
-        // Fallback for other promises if any (though not expected in this simple case)
-        // This part might need adjustment if other promises are passed to React.use
-        if (promise && typeof promise.then === 'function') {
-          let value;
-          promise.then(v => value = v);
-          return value; // Simplified: assumes immediate resolution
-        }
-        return promise;
-    });
-    mockUseParams.mockReturnValue({ classId: testClassId }); // Standard mock for useParams
+    // Set the return value for the mock useParams
+    mockUseParams.mockReturnValue({ classId: testClassId });
 
     mockUseSession.mockReturnValue({
       data: { user: { id: 'teacher1', userType: 'TEACHER' }, expires: 'some-date' },

@@ -9,8 +9,9 @@ import { vi } from 'vitest';
 // Mock dependencies
 vi.mock('next-auth/react');
 vi.mock('next/navigation', () => ({
-  useParams: vi.fn(),
-  useRouter: vi.fn(() => ({ push: vi.fn() })),
+  ...vi.importActual('next/navigation'), // Import and retain default behavior
+  useParams: vi.fn(), // Mock useParams
+  useRouter: vi.fn(() => ({ push: vi.fn() })), // Mock useRouter
 }));
 vi.mock('@/trpc/react', () => ({
   api: {
@@ -37,22 +38,7 @@ vi.mock('@/features/bloom/components', () => ({
     </div>
   )),
 }));
-
-vi.mock('react', async () => {
-    const actualReact = await vi.importActual('react');
-    return {
-        ...actualReact,
-        use: vi.fn((promise) => {
-            if (promise && typeof promise.then === 'function') {
-                let result;
-                promise.then((val: any) => result = val).catch((e: any) => console.error("Mock `use` error", e));
-                return result;
-            }
-            return promise;
-        }),
-    };
-});
-
+// No longer need to mock React.use for useParams
 
 describe('BloomReportsPage', () => {
   const mockUseSession = useSession as jest.Mock;
@@ -67,19 +53,8 @@ describe('BloomReportsPage', () => {
     const testClassId = 'report_class_456';
     const testTeacherId = 'teacher_abc';
 
-    (React.use as jest.Mock).mockImplementation((promise) => {
-        if (promise === mockUseParams) {
-            return { classId: testClassId };
-        }
-        if (promise && typeof promise.then === 'function') {
-          let value;
-          promise.then(v => value = v);
-          return value;
-        }
-        return promise;
-    });
+    // Set the return value for the mock useParams
     mockUseParams.mockReturnValue({ classId: testClassId });
-
 
     mockUseSession.mockReturnValue({
       data: { user: { id: testTeacherId, userType: 'TEACHER' }, expires: 'some-date' },
