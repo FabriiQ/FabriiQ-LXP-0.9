@@ -38,7 +38,8 @@ export function TeacherDashboardContent({ campusId, campusName, teacherId }: Tea
   } = api.campusAnalytics.getCampusPerformance.useQuery(
     { campusId },
     {
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
+      refetchInterval: 60000,
       onError: (error) => {
         console.error('Error fetching campus performance:', error);
         toast({
@@ -58,7 +59,8 @@ export function TeacherDashboardContent({ campusId, campusName, teacherId }: Tea
   } = api.campusAnalytics.getActiveClasses.useQuery(
     { campusId },
     {
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
+      refetchInterval: 60000,
       onError: (error) => {
         console.error('Error fetching active classes:', error);
         toast({
@@ -78,7 +80,8 @@ export function TeacherDashboardContent({ campusId, campusName, teacherId }: Tea
   } = api.campusAnalytics.getUpcomingEvents.useQuery(
     { campusId, days: 14 },
     {
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
+      refetchInterval: 60000,
       onError: (error) => {
         console.error('Error fetching upcoming events:', error);
         toast({
@@ -98,7 +101,8 @@ export function TeacherDashboardContent({ campusId, campusName, teacherId }: Tea
   } = api.campusAnalytics.getRecentActivity.useQuery(
     { campusId, limit: 10 },
     {
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
+      refetchInterval: 30000, // More frequent for recent activity
       onError: (error) => {
         console.error('Error fetching recent activity:', error);
         toast({
@@ -144,7 +148,8 @@ export function TeacherDashboardContent({ campusId, campusName, teacherId }: Tea
   } = api.teacher.getTeacherClasses.useQuery(
     { teacherId },
     {
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
+      refetchInterval: 60000,
       retry: 1,
       onError: (error) => {
         console.error('Error fetching teacher classes:', error);

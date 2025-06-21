@@ -251,8 +251,8 @@ export const teacherRouter = createTRPCRouter({
             excusedCount: 0,
             // Participation metrics
             participationRate: 0,
-            activeStudents: 0,
-            inactiveStudents: classInfo._count.students,
+            activeStudents: classInfo._count.students,
+            inactiveStudents: 0,
             // Activity metrics
             completionRate: 0,
             completedActivities: 0,

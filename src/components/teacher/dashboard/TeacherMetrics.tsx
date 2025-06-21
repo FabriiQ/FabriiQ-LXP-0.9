@@ -15,7 +15,13 @@ interface TeacherMetricsData {
 }
 
 export default function TeacherMetrics({ teacherId }: TeacherMetricsProps) {
-  const { data: metrics, isLoading } = api.analytics.getTeacherStats.useQuery({ teacherId });
+  const { data: metrics, isLoading } = api.analytics.getTeacherStats.useQuery(
+    { teacherId },
+    {
+      refetchOnWindowFocus: true,
+      refetchInterval: 60000, // Refetch every 60 seconds
+    }
+  );
 
   if (isLoading) {
     return <MetricsSkeleton />;

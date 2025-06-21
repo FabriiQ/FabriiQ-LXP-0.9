@@ -84,7 +84,8 @@ export function ClassOverview({ classId }: ClassOverviewProps) {
   const { data: classMetrics, isLoading: isLoadingMetrics } = api.teacher.getClassMetrics.useQuery(
     { classId },
     {
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
+      refetchInterval: 30000, // Refetch every 30 seconds
       retry: 1,
     }
   );
