@@ -23,6 +23,7 @@
     "db:check-subjects": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/server/db/check-subjects.ts",
     "db:simple-seed": "ts-node --project prisma/tsconfig.json prisma/simple-seed.ts",
     "db:seed-subject-topics": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/server/db/seed-subject-topics.ts",
+    "db:simple-seed-topics": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/server/db/simple-seed-topics.ts",
     "db:seed-activities-by-type": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/server/db/seed-activities-by-type.ts",
     "db:seed-bulk-students": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/server/db/seed-bulk-students.ts",
     "db:check-class-activities": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/server/db/check-class-activities.ts",

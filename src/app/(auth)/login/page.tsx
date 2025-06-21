@@ -19,19 +19,21 @@ export const revalidate = 3600; // Revalidate every hour
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { callbackUrl?: string; error?: string };
+  searchParams: Promise<{ callbackUrl?: string; error?: string }>;
 }) {
+  // Await the searchParams promise
+  const resolvedSearchParams = await searchParams;
   // Check if user is already logged in
   const session = await getServerSession(authOptions);
 
   // Log the search parameters for debugging
-  logger.debug("[LOGIN] Search parameters", { searchParams });
+  logger.debug("[LOGIN] Search parameters", { searchParams: resolvedSearchParams });
 
   // Special handling for direct-login callback URLs
-  if (searchParams.callbackUrl && searchParams.callbackUrl.startsWith('/direct-login')) {
+  if (resolvedSearchParams.callbackUrl && resolvedSearchParams.callbackUrl.startsWith('/direct-login')) {
     try {
       // Extract the parameters from the callback URL
-      const callbackUrl = decodeURIComponent(searchParams.callbackUrl);
+      const callbackUrl = decodeURIComponent(resolvedSearchParams.callbackUrl);
       logger.debug("[LOGIN] Decoded callback URL", { callbackUrl });
 
       const urlParams = new URLSearchParams(callbackUrl.split('?')[1]);
@@ -65,9 +67,9 @@ export default async function LoginPage({
     // Normal session handling for non-direct-login cases
 
     // If there's a regular callback URL, redirect to it
-    if (searchParams.callbackUrl && !searchParams.callbackUrl.startsWith('/direct-login')) {
-      logger.debug("[LOGIN] Redirecting to callback URL", { callbackUrl: searchParams.callbackUrl });
-      redirect(searchParams.callbackUrl);
+    if (resolvedSearchParams.callbackUrl && !resolvedSearchParams.callbackUrl.startsWith('/direct-login')) {
+      logger.debug("[LOGIN] Redirecting to callback URL", { callbackUrl: resolvedSearchParams.callbackUrl });
+      redirect(resolvedSearchParams.callbackUrl);
     }
 
     // Otherwise, redirect based on user role
@@ -109,7 +111,7 @@ export default async function LoginPage({
       </div>
 
       <div className="bg-white p-6 rounded-lg shadow-sm border border-light-gray animate-in fade-in-50">
-        <LoginForm callbackUrl={searchParams.callbackUrl} />
+        <LoginForm callbackUrl={resolvedSearchParams.callbackUrl} />
       </div>
     </div>
   );

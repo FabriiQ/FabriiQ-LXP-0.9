@@ -8,6 +8,7 @@ import { api } from "@/trpc/react";
 import { SubjectNodeType, CompetencyLevel, SystemStatus } from "@/server/api/constants";
 import { Card } from "@/components/ui/data-display/card";
 import { Button } from "@/components/ui/core/button";
+import { CreateButton, UpdateButton } from "@/components/ui/loading-button";
 import { Input } from "@/components/ui/core/input";
 import { Textarea } from "@/components/ui/forms/textarea";
 import { Loader2 } from "lucide-react";
@@ -465,20 +466,23 @@ export const TopicForm = ({ subjectId, topicId, parentTopicId }: TopicFormProps)
           >
             Cancel
           </Button>
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className="bg-primary-green hover:bg-medium-teal text-white"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isEditMode ? "Updating..." : "Creating..."}
-              </>
-            ) : (
-              isEditMode ? "Update Topic" : "Create Topic"
-            )}
-          </Button>
+          {isEditMode ? (
+            <UpdateButton
+              type="submit"
+              loading={isSubmitting}
+              className="bg-primary-green hover:bg-medium-teal text-white"
+            >
+              Update Topic
+            </UpdateButton>
+          ) : (
+            <CreateButton
+              type="submit"
+              loading={isSubmitting}
+              className="bg-primary-green hover:bg-medium-teal text-white"
+            >
+              Create Topic
+            </CreateButton>
+          )}
         </div>
       </form>
     </Card>

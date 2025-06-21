@@ -3,6 +3,7 @@ export * from './creation/AssessmentForm';
 export * from './creation/QuestionEditor';
 export * from './creation/BloomsTaxonomySelector';
 export * from './creation/CognitiveDistributionChart';
+export * from './creation/EssayQuestionEditor';
 export * from './ClassAssessmentCreator';
 
 // Export preview components

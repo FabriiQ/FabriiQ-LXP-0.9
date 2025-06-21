@@ -85,6 +85,14 @@ export const QUESTION_TYPE_METADATA: Record<QuestionType, {
     autoGradable: true,
     supportsBloomsLevels: ['APPLY', 'ANALYZE'],
   },
+  [QuestionType.ESSAY]: {
+    label: 'Essay',
+    description: 'Written essay response with rubric-based grading',
+    icon: 'FileTextIcon',
+    color: 'purple',
+    autoGradable: false,
+    supportsBloomsLevels: ['ANALYZE', 'EVALUATE', 'CREATE'],
+  },
 };
 
 // Question type options for dropdowns

@@ -10,9 +10,9 @@ export const metadata: Metadata = {
   description: 'Create a new assessment for the class',
 };
 
-export default async function NewAssessmentPage({ params }: { params: { id: string } }) {
-  // Use await to resolve params to fix the error
-  const { id } = await Promise.resolve(params);
+export default async function NewAssessmentPage({ params }: { params: Promise<{ id: string }> }) {
+  // Await params to resolve the Promise
+  const { id } = await params;
   const classId = id;
 
   try {
@@ -37,7 +37,7 @@ export default async function NewAssessmentPage({ params }: { params: { id: stri
     console.log('Course ID:', classInfo.courseCampus?.courseId);
 
     // Make sure we have a courseId before querying subjects
-    let subjects = [];
+    let subjects: any[] = [];
     if (classInfo.courseCampus?.courseId) {
       subjects = await prisma.subject.findMany({
         where: {

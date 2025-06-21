@@ -6,6 +6,7 @@ import { Campus, Institution, SystemStatus, UserCampusAccess, UserType } from "@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/data-display/card";
 import { Badge } from "@/components/ui/atoms/badge";
 import { Button } from "@/components/ui/button";
+import { DeleteButton, LoadingButton } from "@/components/ui/loading-button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/atoms/skeleton";
 import { BarChart } from "@/components/ui/charts/BarChart";
@@ -681,34 +682,31 @@ export function CampusDetail({ campus }: CampusDetailProps) {
         </CardContent>
         <CardFooter>
           <div className="flex justify-between w-full">
-            <Button
+            <LoadingButton
               variant="outline"
               size="sm"
               onClick={refreshAllData}
-              disabled={isLoadingPerformance || isLoadingOverview || isLoadingEnrollments || isLoadingClasses || isLoadingProgramStats}
+              loading={isLoadingPerformance || isLoadingOverview || isLoadingEnrollments || isLoadingClasses || isLoadingProgramStats}
+              loadingText="Refreshing..."
+              icon={<RefreshCwIcon className="h-4 w-4" />}
             >
-              <RefreshCwIcon className="h-4 w-4 mr-2" />
               Refresh Data
-            </Button>
+            </LoadingButton>
             <div className="flex space-x-2">
-              <Button
+              <DeleteButton
                 variant="outline"
                 size="sm"
                 onClick={handleDelete}
-                disabled={deleteCampus.isLoading}
-                className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                loading={deleteCampus.isLoading}
+                icon={<TrashIcon className="h-4 w-4" />}
               >
-                {deleteCampus.isLoading ? (
-                  "Deleting..."
-                ) : (
-                  <>
-                    <TrashIcon className="h-4 w-4 mr-2" />
-                    Delete Campus
-                  </>
-                )}
-              </Button>
+                Delete Campus
+              </DeleteButton>
               <Link href={`/admin/system/campuses/${campus.id}/edit`}>
-                <Button size="sm">
+                <Button
+                  size="sm"
+                  className="transition-all duration-200 hover:scale-105 active:scale-95"
+                >
                   <PencilIcon className="h-4 w-4 mr-2" />
                   Edit Campus
                 </Button>

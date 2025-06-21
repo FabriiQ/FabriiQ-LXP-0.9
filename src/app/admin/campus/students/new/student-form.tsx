@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { api } from "@/utils/api";
 import { Button } from "@/components/ui/button";
+import { CreateButton } from "@/components/ui/loading-button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/data-display/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/forms/form";
 import { Input } from "@/components/ui/input";
@@ -14,18 +15,14 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
-import { ArrowLeft, UserPlus, Save } from "lucide-react";
+import { ChevronLeft, UserPlus, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/feedback/toast";
 import { TRPCClientErrorLike } from '@trpc/client';
 import { AppRouter } from '@/server/api/root';
+import { generateEnrollmentNumber } from '@/utils/enrollment-number';
 
-const generateEnrollmentNumber = () => {
-  const year = new Date().getFullYear();
-  const timestamp = Date.now().toString().slice(-6);
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-  return `${year}${timestamp}${random}`;
-};
+
 
 const studentFormSchema = z.object({
   firstName: z.string().min(2, {
@@ -55,7 +52,26 @@ const studentFormSchema = z.object({
   notes: z.string().optional(),
   sendInvitation: z.boolean().optional(),
   requirePasswordChange: z.boolean().optional(),
+  // Manual credential creation fields
+  createManualAccount: z.boolean().optional(),
+  username: z.string().optional(),
+  password: z.string().optional(),
 });
+
+// Add conditional validation for username and password
+const studentFormSchemaWithValidation = studentFormSchema.refine(
+  (data) => {
+    // If createManualAccount is true, username and password are required
+    if (data.createManualAccount) {
+      return !!data.username && !!data.password && data.password.length >= 8;
+    }
+    return true;
+  },
+  {
+    message: "Username and password (min 8 characters) are required when creating a manual account",
+    path: ["password"],
+  }
+);
 
 interface StudentFormProps {
   campusId: string;
@@ -84,17 +100,18 @@ interface StudentFormProps {
   userId: string;
 }
 
-export function StudentFormClient({ 
-  campusId, 
-  campusName, 
-  institutionId, 
-  programs, 
-  terms, 
+export function StudentFormClient({
+  campusId,
+  campusName,
+  institutionId,
+  programs,
+  terms,
   classes,
-  userId 
+  userId
 }: StudentFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -118,8 +135,8 @@ export function StudentFormClient({
     }
   });
 
-  const form = useForm<z.infer<typeof studentFormSchema>>({
-    resolver: zodResolver(studentFormSchema),
+  const form = useForm<z.infer<typeof studentFormSchemaWithValidation>>({
+    resolver: zodResolver(studentFormSchemaWithValidation),
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -139,46 +156,64 @@ export function StudentFormClient({
       emergencyContactRelationship: "",
       notes: "",
       sendInvitation: true,
-      requirePasswordChange: true
+      requirePasswordChange: true,
+      createManualAccount: false,
+      username: "",
+      password: "",
     },
   });
 
-  const createUserMutation = api.user.create.useMutation({
-    onSuccess: (data) => {
-      if (form.getValues("classId")) {
-        // If class is selected, enroll student
-        enrollStudentMutation.mutate({
-          studentId: data.id,
-          classId: form.getValues("classId") as string,
-          startDate: new Date(),
-          createdById: userId,
-        });
-      } else {
-        setIsSubmitting(false);
+  // Watch for createManualAccount changes to update form validation
+  const createManualAccount = form.watch("createManualAccount");
+
+  const createStudentMutation = api.user.createStudent.useMutation({
+    onSuccess: (result) => {
+      setIsSubmitting(false);
+
+      if (result.success && result.student) {
+        // Student creation and class enrollment (if selected) are handled in the service
         toast({
           title: "Success",
-          description: "Student created successfully",
+          description: result.message,
         });
         router.push("/admin/campus/students");
+      } else {
+        // Handle validation errors gracefully
+        setError(result.message);
+
+        if (result.validation.errors.email) {
+          form.setError("email", {
+            type: "manual",
+            message: result.validation.errors.email
+          });
+        }
+
+        if (result.validation.errors.username) {
+          form.setError("username", {
+            type: "manual",
+            message: result.validation.errors.username
+          });
+        }
+
+        // Show existing student information if available
+        if (result.validation.existingStudent) {
+          toast({
+            title: "Student Already Exists",
+            description: `A student with this ${result.validation.errors.email ? 'email' : 'enrollment number'} already exists: ${result.validation.existingStudent.name} (${result.validation.existingStudent.email})`,
+            variant: "warning",
+          });
+        } else {
+          toast({
+            title: "Validation Failed",
+            description: result.message,
+            variant: "error",
+          });
+        }
       }
     },
     onError: (error: TRPCClientErrorLike<AppRouter>) => {
       setIsSubmitting(false);
       setError(error.message);
-      
-      if (error.message.includes("already exists")) {
-        if (error.message.includes("enrollmentNumber")) {
-          // If enrollment number collision, retry with a new number
-          onSubmit(form.getValues());
-          return;
-        }
-        
-        form.setError("email", {
-          type: "manual",
-          message: "This email is already registered in the system"
-        });
-        form.setValue("email", "");
-      }
 
       toast({
         title: "Error creating student",
@@ -225,7 +260,7 @@ export function StudentFormClient({
 
   // Update the onSubmit function to prevent submission if email is already taken
   const onSubmit = async (data: z.infer<typeof studentFormSchema>) => {
-    if (form.getFieldState("email").error) {
+    if (form.formState.errors.email) {
       toast({
         title: "Error",
         description: "Please fix the email validation errors before submitting",
@@ -234,22 +269,25 @@ export function StudentFormClient({
       return;
     }
 
+    // Reset retry count on new submission (not retries)
+    if (!isSubmitting) {
+      setRetryCount(0);
+    }
+
     setIsSubmitting(true);
     setError("");
     
     try {
-      // First attempt to create the user
-      const result = await createUserMutation.mutateAsync({
+      // Create the student using the new graceful endpoint
+      const result = await createStudentMutation.mutateAsync({
         name: `${data.firstName} ${data.lastName}`,
         email: data.email,
-        username: data.email,
-        userType: "CAMPUS_STUDENT",
+        username: data.createManualAccount && data.username ? data.username : undefined,
         phoneNumber: data.phone,
-        accessScope: "SINGLE_CAMPUS",
-        institutionId: institutionId,
-        primaryCampusId: campusId,
+        campusId: campusId,
+        classId: data.classId, // Include class enrollment
         profileData: {
-          enrollmentNumber: generateEnrollmentNumber(),
+          // enrollmentNumber will be generated server-side with proper institution/campus codes
           dateOfBirth: data.dateOfBirth,
           address: data.address,
           city: data.city,
@@ -265,55 +303,28 @@ export function StudentFormClient({
           notes: data.notes,
           sendInvitation: data.sendInvitation,
           requirePasswordChange: data.requirePasswordChange,
+          createManualAccount: data.createManualAccount,
         }
       });
 
-      // If class is selected and user creation was successful, enroll the student
-      if (form.getValues("classId") && result?.id) {
-        try {
-          await enrollStudentMutation.mutateAsync({
-            studentId: result.id,
-            classId: form.getValues("classId") as string,
-            startDate: new Date(),
-            createdById: userId,
-          });
-        } catch (enrollError) {
-          console.error("Error enrolling student:", enrollError);
-          toast({
-            title: "Warning",
-            description: "Student created but enrollment failed. Please enroll manually.",
-            variant: "warning",
-          });
-        }
+      // The result handling is now done in the mutation's onSuccess callback
+      // If we reach here, the mutation was successful
+      if (result.success && result.student) {
+        setIsSubmitting(false);
+        const redirectId = result.student.studentProfileId || result.student.id;
+        router.push(`/admin/campus/students/${redirectId}`);
       }
 
-      setIsSubmitting(false);
-      router.push(`/admin/campus/students/${result?.id}`);
-      
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        // Handle enrollment number collision
-        if (error.message.includes("enrollmentNumber")) {
-          // Retry submission with a new enrollment number
-          return onSubmit(data);
-        }
-        
-        // Handle duplicate email/username
-        if (error.message.includes("email") || error.message.includes("username")) {
-          form.setError("email", {
-            type: "manual",
-            message: "This email is already registered in the system"
-          });
-          form.setValue("email", "");
-        }
+      // This catch block should rarely be reached since we handle errors gracefully in the service
+      setIsSubmitting(false);
 
+      if (error instanceof Error) {
         setError(error.message);
       } else {
         setError("An unexpected error occurred");
       }
-      
-      setIsSubmitting(false);
-      
+
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "An unexpected error occurred",
@@ -322,33 +333,7 @@ export function StudentFormClient({
     }
   };
 
-  // Add a new helper function to handle submission errors
-  const handleSubmissionError = (error: unknown) => {
-    setIsSubmitting(false);
-    if (error instanceof Error) {
-      setError(error.message);
-      if (error.message.includes("enrollmentNumber")) {
-        // If enrollment number collision, retry submission with a new number
-        onSubmit(form.getValues());
-        return;
-      }
-      if (error.message.includes("email")) {
-        form.setError("email", {
-          type: "manual",
-          message: "This email is already registered in the system"
-        });
-        form.setValue("email", "");
-      }
-    } else {
-      setError("An unexpected error occurred");
-    }
-    
-    toast({
-      title: "Error",
-      description: error instanceof Error ? error.message : "An unexpected error occurred",
-      variant: "error",
-    });
-  };
+
 
   return (
     <Card className="w-full">
@@ -656,6 +641,65 @@ export function StudentFormClient({
               <div className="space-y-4">
                 <FormField
                   control={form.control}
+                  name="createManualAccount"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Create manual username and password</FormLabel>
+                        <FormDescription>
+                          If unchecked, the student will receive an invitation email to set up their account.
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                {createManualAccount && (
+                  <div className="space-y-4 pl-6">
+                    <FormField
+                      control={form.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Username</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter username" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            If left empty, email will be used as username
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="Enter password" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            Must be at least 8 characters
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+                <FormField
+                  control={form.control}
                   name="sendInvitation"
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
@@ -674,7 +718,7 @@ export function StudentFormClient({
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="requirePasswordChange"
@@ -703,14 +747,13 @@ export function StudentFormClient({
             <Button variant="outline" type="button" asChild>
               <Link href="/admin/campus/students">Cancel</Link>
             </Button>
-            <Button 
-              type="submit" 
-              disabled={isSubmitting}
-              className="gap-2"
+            <CreateButton
+              type="submit"
+              loading={isSubmitting}
+              icon={<UserPlus className="h-4 w-4" />}
             >
-              {isSubmitting ? "Creating..." : "Create Student"}
-              <UserPlus className="h-4 w-4" />
-            </Button>
+              Create Student
+            </CreateButton>
           </CardFooter>
         </form>
       </Form>

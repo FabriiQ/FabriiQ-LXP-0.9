@@ -49,8 +49,8 @@ export default function ClassStudentsPage() {
   );
   
   // Updated query name to match your API
-  const { data: enrolledStudents, isLoading: isLoadingStudents, refetch: refetchStudents } = 
-    api.student.getStudentEnrollments.useQuery(
+  const { data: enrolledStudents, isLoading: isLoadingStudents, refetch: refetchStudents } =
+    api.student.getClassEnrollments.useQuery(
       { classId },
       { enabled: !!classId }
     );

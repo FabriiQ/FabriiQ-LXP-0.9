@@ -12,6 +12,7 @@ export enum AssessmentCategory {
   PROJECT = 'PROJECT',
   PRESENTATION = 'PRESENTATION',
   PARTICIPATION = 'PARTICIPATION',
+  ESSAY = 'ESSAY',
   OTHER = 'OTHER',
 }
 

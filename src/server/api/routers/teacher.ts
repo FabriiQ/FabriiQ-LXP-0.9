@@ -24,6 +24,10 @@ const createTeacherSchema = z.object({
   requirePasswordChange: z.boolean().optional(),
   campusId: z.string(),
   userId: z.string(),
+  // Manual credential creation fields
+  createManualAccount: z.boolean().optional(),
+  username: z.string().optional(),
+  password: z.string().optional(),
 });
 
 // Define system-level teacher creation schema
@@ -818,42 +822,60 @@ export const teacherRouter = createTRPCRouter({
         });
       }
 
-      // Create the user account for the teacher
-      const teacher = await ctx.prisma.user.create({
-        data: {
-          name: `${input.firstName} ${input.lastName}`,
-          email: input.email,
-          username: input.email,
-          userType: 'CAMPUS_TEACHER' as UserType,
-          status: 'ACTIVE' as SystemStatus,
-          primaryCampusId: input.campusId,
-          institutionId: campus.institutionId,
-          // Store user's basic info in profileData
-          profileData: {
-            firstName: input.firstName,
-            lastName: input.lastName,
-            phone: input.phone,
-            address: input.address,
-            city: input.city,
-            state: input.state,
-            postalCode: input.postalCode,
-            country: input.country,
-            bio: input.bio,
-          },
-          teacherProfile: {
-            create: {
-              specialization: input.specialization,
-              qualifications: input.qualifications ? [{ value: input.qualifications }] : [],
-            },
-          },
-          activeCampuses: {
-            create: {
-              campusId: input.campusId,
-              roleType: 'CAMPUS_TEACHER' as UserType,
-              status: 'ACTIVE' as SystemStatus,
-            },
+      // Prepare user data
+      const userData: any = {
+        name: `${input.firstName} ${input.lastName}`,
+        email: input.email,
+        username: input.createManualAccount && input.username ? input.username : input.email,
+        userType: 'CAMPUS_TEACHER' as UserType,
+        status: input.createManualAccount ? 'ACTIVE' as SystemStatus : 'INACTIVE' as SystemStatus,
+        primaryCampusId: input.campusId,
+        institutionId: campus.institutionId,
+        // Store user's basic info in profileData
+        profileData: {
+          firstName: input.firstName,
+          lastName: input.lastName,
+          phone: input.phone,
+          address: input.address,
+          city: input.city,
+          state: input.state,
+          postalCode: input.postalCode,
+          country: input.country,
+          bio: input.bio,
+        },
+        teacherProfile: {
+          create: {
+            specialization: input.specialization,
+            qualifications: input.qualifications ? [{ value: input.qualifications }] : [],
           },
         },
+        activeCampuses: {
+          create: {
+            campusId: input.campusId,
+            roleType: 'CAMPUS_TEACHER' as UserType,
+            status: 'ACTIVE' as SystemStatus,
+          },
+        },
+      };
+
+      // If creating a manual account with password
+      if (input.createManualAccount && input.password) {
+        // Hash the password
+        const salt = await bcryptjs.genSalt(10);
+        const hashedPassword = await bcryptjs.hash(input.password, salt);
+        userData.password = hashedPassword;
+
+        console.log('Creating manual account with username:', userData.username);
+        console.log('Password has been hashed and set');
+      } else {
+        console.log('Not creating manual account or no password provided');
+        console.log('createManualAccount:', input.createManualAccount);
+        console.log('password provided:', !!input.password);
+      }
+
+      // Create the user account for the teacher
+      const teacher = await ctx.prisma.user.create({
+        data: userData
       });
 
       // Fetch the teacher profile

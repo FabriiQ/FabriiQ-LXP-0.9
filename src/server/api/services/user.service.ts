@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { hash, compare } from "bcryptjs";
 import type { Prisma } from ".prisma/client";
+import { generateEnrollmentNumber } from "@/utils/enrollment-number";
 import {
   CreateUserInput,
   UpdateUserInput,
@@ -65,19 +66,49 @@ export class UserService {
         }
       });
 
-      // If the user is a student, create their profile
+      // If the user is a student, create their profile with enrollment number collision handling
       if (input.userType === UserType.CAMPUS_STUDENT) {
-        await tx.studentProfile.create({
-          data: {
-            userId: createdUser.id,
-            enrollmentNumber: input.profileData?.enrollmentNumber || '',
-            currentGrade: input.profileData?.currentGrade,
-            academicHistory: input.profileData?.academicHistory as Prisma.InputJsonValue,
-            interests: input.profileData?.interests || [],
-            achievements: (input.profileData?.achievements || []) as Prisma.InputJsonValue[],
-            specialNeeds: input.profileData?.specialNeeds as Prisma.InputJsonValue
+        let enrollmentNumber = input.profileData?.enrollmentNumber;
+        let retryCount = 0;
+        const maxRetries = 5;
+
+        // If no enrollment number provided, generate one
+        if (!enrollmentNumber) {
+          enrollmentNumber = generateEnrollmentNumber();
+        }
+
+        while (retryCount < maxRetries) {
+          try {
+            await tx.studentProfile.create({
+              data: {
+                userId: createdUser.id,
+                enrollmentNumber,
+                currentGrade: input.profileData?.currentGrade,
+                academicHistory: input.profileData?.academicHistory as Prisma.InputJsonValue,
+                interests: input.profileData?.interests || [],
+                achievements: (input.profileData?.achievements || []) as Prisma.InputJsonValue[],
+                specialNeeds: input.profileData?.specialNeeds as Prisma.InputJsonValue
+              }
+            });
+            break; // Success, exit the retry loop
+          } catch (error: any) {
+            // Check if it's a unique constraint error on enrollmentNumber
+            if (error.code === 'P2002' && error.meta?.target?.includes('enrollmentNumber')) {
+              retryCount++;
+              if (retryCount >= maxRetries) {
+                throw new TRPCError({
+                  code: "INTERNAL_SERVER_ERROR",
+                  message: "Failed to generate unique enrollment number after multiple attempts"
+                });
+              }
+              // Generate a new enrollment number and retry
+              enrollmentNumber = generateEnrollmentNumber();
+              continue;
+            }
+            // If it's not an enrollment number collision, re-throw the error
+            throw error;
           }
-        });
+        }
       }
 
       // If a primaryCampusId is provided, create a campus access record
@@ -251,20 +282,51 @@ export class UserService {
       });
     }
 
-    const profileData: Prisma.StudentProfileCreateInput = {
-      user: { connect: { id: input.userId } },
-      enrollmentNumber: input.enrollmentNumber!,
-      currentGrade: input.currentGrade,
-      academicHistory: input.academicHistory as Prisma.InputJsonValue,
-      interests: input.interests || [],
-      achievements: input.achievements as Prisma.InputJsonValue[] || [],
-      specialNeeds: input.specialNeeds as Prisma.InputJsonValue,
-      guardianInfo: input.guardianInfo as Prisma.InputJsonValue
-    };
+    let enrollmentNumber = input.enrollmentNumber;
+    let retryCount = 0;
+    const maxRetries = 5;
 
-    const profile = await prisma.studentProfile.create({
-      data: profileData
-    });
+    // If no enrollment number provided, generate one
+    if (!enrollmentNumber) {
+      enrollmentNumber = generateEnrollmentNumber();
+    }
+
+    let profile;
+    while (retryCount < maxRetries) {
+      try {
+        const profileData: Prisma.StudentProfileCreateInput = {
+          user: { connect: { id: input.userId } },
+          enrollmentNumber,
+          currentGrade: input.currentGrade,
+          academicHistory: input.academicHistory as Prisma.InputJsonValue,
+          interests: input.interests || [],
+          achievements: input.achievements as Prisma.InputJsonValue[] || [],
+          specialNeeds: input.specialNeeds as Prisma.InputJsonValue,
+          guardianInfo: input.guardianInfo as Prisma.InputJsonValue
+        };
+
+        profile = await prisma.studentProfile.create({
+          data: profileData
+        });
+        break; // Success, exit the retry loop
+      } catch (error: any) {
+        // Check if it's a unique constraint error on enrollmentNumber
+        if (error.code === 'P2002' && error.meta?.target?.includes('enrollmentNumber')) {
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Failed to generate unique enrollment number after multiple attempts"
+            });
+          }
+          // Generate a new enrollment number and retry
+          enrollmentNumber = generateEnrollmentNumber();
+          continue;
+        }
+        // If it's not an enrollment number collision, re-throw the error
+        throw error;
+      }
+    }
 
     return profile;
   }

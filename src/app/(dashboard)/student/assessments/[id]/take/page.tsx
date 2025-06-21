@@ -7,25 +7,34 @@ import { api } from '@/trpc/react';
 import { AssessmentTaker } from '@/features/assessments/components/online';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
-export default function TakeAssessmentPage({ params }: { params: { id: string } }) {
+export default function TakeAssessmentPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { toast } = useToast();
   const { data: session } = useSession();
   const [isLoading, setIsLoading] = useState(true);
-  
+  const [assessmentId, setAssessmentId] = useState<string>('');
+
+  // Resolve params
+  useEffect(() => {
+    params.then((resolvedParams) => {
+      setAssessmentId(resolvedParams.id);
+    });
+  }, [params]);
+
   // Get assessment for taking
   const { data: assessment, error } = api.assessment.getForTaking.useQuery(
-    { id: params.id },
+    { id: assessmentId },
     {
+      enabled: !!assessmentId,
       retry: false,
       onError: (error) => {
         toast({
           title: 'Error',
           description: error.message || 'Failed to load assessment',
-          variant: 'destructive',
+          variant: 'error',
         });
         setIsLoading(false);
       },
@@ -41,7 +50,7 @@ export default function TakeAssessmentPage({ params }: { params: { id: string } 
       toast({
         title: 'Access Denied',
         description: 'Only students can take assessments',
-        variant: 'destructive',
+        variant: 'error',
       });
       router.push('/dashboard');
     }
@@ -75,7 +84,7 @@ export default function TakeAssessmentPage({ params }: { params: { id: string } 
         />
         <div className="mt-6">
           <Button onClick={handleBack} variant="outline">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ChevronLeft className="h-4 w-4 mr-2" />
             Back to Assessments
           </Button>
         </div>
@@ -92,7 +101,7 @@ export default function TakeAssessmentPage({ params }: { params: { id: string } 
         />
         <div className="mt-6">
           <Button onClick={handleBack} variant="outline">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ChevronLeft className="h-4 w-4 mr-2" />
             Back to Assessments
           </Button>
         </div>
@@ -109,7 +118,7 @@ export default function TakeAssessmentPage({ params }: { params: { id: string } 
       
       <div className="mt-6">
         <AssessmentTaker
-          assessmentId={params.id}
+          assessmentId={assessmentId}
           studentId={session?.user?.id || ''}
           className="w-full"
         />

@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/data-display/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/navigation/tabs";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Filter, Download, UploadIcon, MoreHorizontal, Settings } from "lucide-react";
+import { Search, Plus, Filter, Download, Upload, MoreHorizontal, Settings } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,6 +14,8 @@ import { StudentImportDialog } from "@/components/admin/campus/students/StudentI
 import { StudentExportDialog } from "@/components/admin/campus/students/StudentExportDialog";
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useRef } from 'react';
+import { api } from "@/utils/api";
+import { useSession } from "next-auth/react";
 
 interface StudentWithDetails {
   id: string;
@@ -24,45 +26,48 @@ interface StudentWithDetails {
   enrollment_date: Date | null;
   program_name: string | null;
   class_count: number;
+  enrollmentNumber?: string;
 }
 
 export default function CampusStudentsPage() {
-  const [campus, setCampus] = useState<any>(null);
-  const [studentsWithDetails, setStudentsWithDetails] = useState<StudentWithDetails[]>([]);
+  const { data: session } = useSession();
   const [filteredStudents, setFilteredStudents] = useState<StudentWithDetails[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [programFilter, setProgramFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
-  const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [hasNextPage, setHasNextPage] = useState(false);
-  const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
 
   // Reference for the virtualized list container
   const parentRef = useRef<HTMLDivElement>(null);
 
-  // Generate a large dataset for testing
-  const generateLargeDataset = (count: number) => {
-    const data: StudentWithDetails[] = [];
-    const programs = ['Computer Science', 'Business Administration', 'Engineering', 'Medicine', 'Arts'];
-    const statuses = ['ACTIVE', 'PENDING', 'INACTIVE'];
+  // Get campus data from session
+  const campusId = session?.user?.primaryCampusId;
 
-    for (let i = 0; i < count; i++) {
-      data.push({
-        id: `student-${i}`,
-        user_id: `user-${i}`,
-        name: `Student ${i}`,
-        email: `student${i}@example.com`,
-        status: statuses[i % statuses.length],
-        enrollment_date: new Date(Date.now() - Math.floor(Math.random() * 10000000000)),
-        program_name: programs[i % programs.length],
-        class_count: Math.floor(Math.random() * 6) + 1
-      });
-    }
+  // Fetch real students data using tRPC
+  const { data: studentsData, isLoading: isLoadingStudents } = api.student.getAllStudentsByCampus.useQuery(
+    { campusId: campusId || "" },
+    { enabled: !!campusId }
+  );
 
-    return data;
-  };
+  // Fetch campus data
+  const { data: campusData } = api.campus.getById.useQuery(
+    { id: campusId! },
+    { enabled: !!campusId }
+  );
+
+  // Transform real student data to the expected format - memoized to prevent infinite re-renders
+  const studentsWithDetails: StudentWithDetails[] = useMemo(() => {
+    return studentsData?.map(student => ({
+      id: student.id,
+      user_id: student.user.id,
+      name: student.user.name || 'Unknown',
+      email: student.user.email || '',
+      status: 'ACTIVE', // All fetched students are active
+      enrollment_date: student.createdAt || null,
+      program_name: null, // Would need to be fetched from enrollments
+      class_count: 0, // Would need to be calculated from enrollments
+      enrollmentNumber: student.enrollmentNumber
+    })) || [];
+  }, [studentsData]);
 
   // Setup virtualization
   const rowVirtualizer = useVirtualizer({
@@ -71,50 +76,6 @@ export default function CampusStudentsPage() {
     estimateSize: () => 80, // Estimated row height
     overscan: 10, // Number of items to render outside of the visible area
   });
-
-  // Fetch initial data
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true);
-
-        // Simulate campus data
-        setCampus({
-          id: 'campus-1',
-          name: 'Main Campus',
-          code: 'MC',
-          status: 'ACTIVE'
-        });
-
-        // Generate large dataset for testing
-        const largeDataset = generateLargeDataset(1000); // Start with 1000 for testing
-        setStudentsWithDetails(largeDataset);
-        setTotalCount(50000); // Simulate total count of 50,000 students
-        setHasNextPage(true);
-
-        // Apply initial filters
-        const initialFiltered = largeDataset.filter(student =>
-          statusFilter === 'all' || student.status.toLowerCase() === statusFilter
-        );
-        setFilteredStudents(initialFiltered);
-
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        setLoading(false);
-      }
-    }
-
-    fetchData();
-
-    // Setup cache invalidation every 5 minutes
-    const cacheInvalidationTimer = setInterval(() => {
-      // In a real app, this would check if the cache needs refreshing
-      console.log('Checking if cache needs refreshing...');
-    }, 5 * 60 * 1000);
-
-    return () => clearInterval(cacheInvalidationTimer);
-  }, []);
 
   // Filter students when search query or filters change
   useEffect(() => {
@@ -136,7 +97,8 @@ export default function CampusStudentsPage() {
         const query = searchQuery.toLowerCase();
         return (
           student.name.toLowerCase().includes(query) ||
-          student.email.toLowerCase().includes(query)
+          student.email.toLowerCase().includes(query) ||
+          (student.enrollmentNumber && student.enrollmentNumber.toLowerCase().includes(query))
         );
       }
 
@@ -146,44 +108,7 @@ export default function CampusStudentsPage() {
     setFilteredStudents(filtered);
   }, [searchQuery, programFilter, statusFilter, studentsWithDetails]);
 
-  // Handle infinite scrolling
-  const loadMoreStudents = async () => {
-    if (isFetchingNextPage || !hasNextPage) return;
-
-    try {
-      setIsFetchingNextPage(true);
-
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Generate more data
-      const nextPageData = generateLargeDataset(500);
-
-      // Append to existing data
-      setStudentsWithDetails(prev => [...prev, ...nextPageData]);
-
-      // Check if we have more pages
-      setHasNextPage(studentsWithDetails.length + nextPageData.length < totalCount);
-      setPage(prev => prev + 1);
-
-      setIsFetchingNextPage(false);
-    } catch (error) {
-      console.error('Error loading more students:', error);
-      setIsFetchingNextPage(false);
-    }
-  };
-
-  // Handle scroll to detect when to load more data
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-
-    // Load more when scrolled to 80% of the way down
-    if (scrollTop + clientHeight >= scrollHeight * 0.8 && !isFetchingNextPage && hasNextPage) {
-      loadMoreStudents();
-    }
-  };
-
-  if (loading || !campus) {
+  if (isLoadingStudents || !campusData) {
     return (
       <div className="container mx-auto py-6 space-y-6">
         <div className="flex justify-between items-center">
@@ -204,11 +129,11 @@ export default function CampusStudentsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Student Management</h1>
-          <p className="text-muted-foreground">Manage students at {campus.name}</p>
+          <p className="text-muted-foreground">Manage students at {campusData.name}</p>
         </div>
         <div className="flex gap-2">
-          <StudentImportDialog campusId={campus.id} />
-          <StudentExportDialog campusId={campus.id} />
+          <StudentImportDialog campusId={campusData.id} />
+          <StudentExportDialog campusId={campusData.id} />
           <Button asChild>
             <Link href="/admin/campus/students/new">
               <Plus className="mr-2 h-4 w-4" /> Add Student
@@ -280,7 +205,6 @@ export default function CampusStudentsPage() {
                       <td colSpan={7} style={{ padding: 0 }}>
                         <div
                           ref={parentRef}
-                          onScroll={handleScroll}
                           style={{
                             height: '600px',
                             overflow: 'auto',
@@ -310,7 +234,9 @@ export default function CampusStudentsPage() {
                                       </Avatar>
                                       <div>
                                         <p className="font-medium">{student.name}</p>
-                                        <p className="text-xs text-muted-foreground">ID: {student.id.substring(0, 8)}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {student.enrollmentNumber ? `Enrollment: ${student.enrollmentNumber}` : `ID: ${student.id.substring(0, 8)}`}
+                                        </p>
                                       </div>
                                     </div>
                                   </div>
@@ -361,26 +287,16 @@ export default function CampusStudentsPage() {
                   </tbody>
                 </table>
 
-                {filteredStudents.length === 0 && !loading && (
+                {filteredStudents.length === 0 && !isLoadingStudents && (
                   <div className="p-8 text-center text-muted-foreground">
                     No students found matching your filters
-                  </div>
-                )}
-
-                {isFetchingNextPage && (
-                  <div className="p-4 text-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
-                    <p className="text-sm text-muted-foreground mt-2">Loading more students...</p>
                   </div>
                 )}
               </div>
             </CardContent>
             <CardFooter className="flex justify-between py-4">
               <div className="text-sm text-muted-foreground">
-                Showing {filteredStudents.length} of {totalCount} students
-              </div>
-              <div className="text-sm">
-                Page {page}
+                Showing {filteredStudents.length} students
               </div>
             </CardFooter>
           </Card>
@@ -422,7 +338,7 @@ export default function CampusStudentsPage() {
           <h3 className="text-lg font-semibold">Maintenance Actions</h3>
           <p className="text-sm text-muted-foreground">These actions are for system maintenance and fixing legacy data issues.</p>
           <div className="flex gap-2">
-            <FixStudentsCampusAccess campusId={campus?.id} />
+            <FixStudentsCampusAccess campusId={campusData?.id} />
           </div>
         </div>
       </div>

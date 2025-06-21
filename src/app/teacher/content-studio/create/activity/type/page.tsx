@@ -7,7 +7,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { ActivityPurpose } from "@/server/api/constants";
-import { ActivityTypeSelector } from "@/features/activities/components/activity-creators/ActivityTypeSelector";
+import { ActivityTypeSelector } from "@/components/teacher/activities-new/ActivityTypeSelector";
 
 export default function ActivityTypePage() {
   const router = useRouter();

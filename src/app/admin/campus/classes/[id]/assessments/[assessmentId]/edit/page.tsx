@@ -4,27 +4,35 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/trpc/server';
 import { ClassLayout } from '../../../components/ClassLayout';
-import { AssessmentForm } from '../../components/AssessmentForm';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
 } from '@/components/ui/data-display/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+// Import the new ClassAssessmentCreator from features/assessments
+const DynamicClassAssessmentCreator = dynamic(
+  () => import('@/features/assessments/components/ClassAssessmentCreator').then(mod => ({ default: mod.ClassAssessmentCreator })),
+  {
+    loading: () => <div className="animate-pulse p-8 bg-gray-100 dark:bg-gray-800 rounded-lg">Loading assessment editor...</div>
+  }
+);
 
 export const metadata: Metadata = {
   title: 'Edit Assessment',
   description: 'Edit assessment details',
 };
 
-export default async function EditAssessmentPage({ 
-  params 
-}: { 
-  params: { id: string; assessmentId: string } 
+export default async function EditAssessmentPage({
+  params
+}: {
+  params: Promise<{ id: string; assessmentId: string }>
 }) {
-  const { id: classId, assessmentId } = params;
+  const { id: classId, assessmentId } = await params;
   
   try {
     // Fetch class details
@@ -75,19 +83,41 @@ export default async function EditAssessmentPage({
             </div>
           </div>
           
-          <Card>
-            <CardHeader>
-              <CardTitle>Assessment Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AssessmentForm 
-                classId={classId}
-                subjects={subjects.items}
-                assessment={assessment}
-                action="edit"
-              />
-            </CardContent>
-          </Card>
+          {/* Use the new ClassAssessmentCreator component for editing */}
+          <DynamicClassAssessmentCreator
+            initialValues={{
+              classId: classId,
+              title: assessment.title,
+              description: assessment.description || '',
+              instructions: assessment.instructions || '',
+              category: assessment.category,
+              subjectId: assessment.subjectId,
+              topicId: assessment.topicId || '',
+              maxScore: assessment.maxScore,
+              passingScore: assessment.passingScore,
+              weightage: assessment.weightage,
+              rubricId: assessment.rubricId || '',
+              dueDate: assessment.dueDate ? new Date(assessment.dueDate) : undefined,
+            }}
+            subjects={subjects.items}
+            onSave={async (assessmentData: any) => {
+              // Handle assessment update
+              try {
+                await api.assessment.update({
+                  id: assessmentId,
+                  ...assessmentData,
+                });
+                // Redirect back to assessment detail page
+                window.location.href = `/admin/campus/classes/${classId}/assessments/${assessmentId}`;
+              } catch (error) {
+                console.error('Error updating assessment:', error);
+                alert('Failed to update assessment. Please try again.');
+              }
+            }}
+            onCancel={() => {
+              window.location.href = `/admin/campus/classes/${classId}/assessments/${assessmentId}`;
+            }}
+          />
         </div>
       </ClassLayout>
     );

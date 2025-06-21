@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { api } from '@/trpc/react';
 import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -308,23 +309,16 @@ export function CampusAssignmentManager({
               </SelectContent>
             </Select>
 
-            <Button
+            <LoadingButton
               onClick={handleAssignToCampus}
-              disabled={isAddingCampus || !selectedCampusId || availableCampuses.length === 0}
+              disabled={!selectedCampusId || availableCampuses.length === 0}
+              loading={isAddingCampus}
+              loadingText="Adding..."
+              icon={<Plus className="h-4 w-4" />}
               className="ml-auto"
             >
-              {isAddingCampus ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Campus
-                </>
-              )}
-            </Button>
+              Add Campus
+            </LoadingButton>
           </div>
         </CardFooter>
       </Card>

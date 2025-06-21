@@ -6,6 +6,7 @@ import { toast } from '@/components/ui/feedback/toast';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/forms/input";
 import { Button } from "@/components/ui/button";
+import { CreateButton } from "@/components/ui/loading-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/forms/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/forms/form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -160,12 +161,23 @@ const CreateClassForm: FC<CreateClassFormProps> = ({
   const onSubmit = async (data: CreateClassFormValues) => {
     try {
       setError(null);
-      const courseCampus = courseCampuses.find(cc => cc.id === data.courseCampusId);
+      console.log('Form submission started with data:', data);
 
-      await createClassMutation.mutateAsync({
+      const courseCampus = courseCampuses.find(cc => cc.id === data.courseCampusId);
+      console.log('Found courseCampus:', courseCampus);
+
+      if (!courseCampus) {
+        throw new Error('Selected course not found');
+      }
+
+      const submitData = {
         ...data,
-        campusId: courseCampus?.campusId || '', // Get campusId from the selected courseCampus
-      });
+        campusId: courseCampus.campusId,
+      };
+
+      console.log('Submitting data to API:', submitData);
+
+      await createClassMutation.mutateAsync(submitData);
     } catch (err) {
       console.error('Error creating class:', err);
       setError(err instanceof Error ? err.message : 'Failed to create class');
@@ -309,7 +321,8 @@ const CreateClassForm: FC<CreateClassFormProps> = ({
                         type="button"
                         variant="outline"
                         onClick={() => setIsCreateTermDialogOpen(true)}
-                        disabled={!form.getValues('courseCampusId')}
+                        disabled={!form.getValues('courseCampusId') || createClassMutation.isLoading}
+                        className="transition-all duration-200 hover:scale-105 active:scale-95"
                       >
                         {filteredTerms.length > 0 ? "Add Term" : "Create Term"}
                       </Button>
@@ -526,15 +539,21 @@ const CreateClassForm: FC<CreateClassFormProps> = ({
                 type="button"
                 variant="outline"
                 onClick={() => router.back()}
+                disabled={createClassMutation.isLoading}
               >
                 Cancel
               </Button>
-              <Button
+              <CreateButton
                 type="submit"
-                disabled={createClassMutation.isLoading}
+                loading={createClassMutation.isLoading}
+                onClick={() => {
+                  console.log('Create Class button clicked');
+                  console.log('Form values:', form.getValues());
+                  console.log('Form errors:', form.formState.errors);
+                }}
               >
-                {createClassMutation.isLoading ? "Creating..." : "Create Class"}
-              </Button>
+                Create Class
+              </CreateButton>
             </div>
           </form>
         </Form>

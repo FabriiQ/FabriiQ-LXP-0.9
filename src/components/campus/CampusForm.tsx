@@ -8,6 +8,7 @@ import { z } from "zod";
 import { Campus, Institution } from "@prisma/client";
 import { SystemStatus } from "@/server/api/constants";
 import { Button } from "@/components/ui/button";
+import { CreateButton, UpdateButton } from "@/components/ui/loading-button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/forms/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/forms/select";
@@ -395,16 +396,21 @@ export function CampusForm({ campus, institutions }: CampusFormProps) {
         >
           Cancel
         </Button>
-        <Button
-          type="submit"
-          disabled={createCampus.isLoading || updateCampus.isLoading}
-        >
-          {isEditing ? (
-            updateCampus.isLoading ? "Updating..." : "Update Campus"
-          ) : (
-            createCampus.isLoading ? "Creating..." : "Create Campus"
-          )}
-        </Button>
+        {isEditing ? (
+          <UpdateButton
+            type="submit"
+            loading={updateCampus.isLoading}
+          >
+            Update Campus
+          </UpdateButton>
+        ) : (
+          <CreateButton
+            type="submit"
+            loading={createCampus.isLoading}
+          >
+            Create Campus
+          </CreateButton>
+        )}
       </div>
     </form>
   );

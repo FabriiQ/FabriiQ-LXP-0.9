@@ -1,6 +1,6 @@
 import React from 'react';
 import { CoordinatorClassPerformance } from '@/components/coordinator/performance/CoordinatorClassPerformance';
-import { getServerAuthSession } from '@/server/auth';
+import { getSessionCache } from '@/utils/session-cache';
 import { redirect } from 'next/navigation';
 import { Metadata } from 'next';
 
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
  * It's part of the admin/coordinator section and inherits the admin layout.
  */
 export default async function CoordinatorClassPerformancePage() {
-  const session = await getServerAuthSession();
+  const session = await getSessionCache();
 
   // Redirect if not authenticated
   if (!session) {

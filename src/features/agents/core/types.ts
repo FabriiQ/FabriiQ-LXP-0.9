@@ -10,6 +10,7 @@ export enum AgentType {
   SEARCH = 'search',
   RESOURCE = 'resource',
   FEEDBACK = 'feedback',
+  ESSAY_GRADING = 'essay-grading',
 }
 
 export enum MemoryType {

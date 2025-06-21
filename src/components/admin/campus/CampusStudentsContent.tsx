@@ -198,17 +198,28 @@ export function CampusStudentsContent({
         </div>
         {!isCoordinator && (
           <div className="flex gap-2">
-            <Button variant="outline" asChild>
+            <Button
+              variant="outline"
+              asChild
+              className="transition-all duration-200 hover:scale-105 active:scale-95"
+            >
               <Link href={`${basePath}/students/import`}>
                 <Upload className="mr-2 h-4 w-4" /> Import
               </Link>
             </Button>
-            <Button variant="outline" asChild>
+            <Button
+              variant="outline"
+              asChild
+              className="transition-all duration-200 hover:scale-105 active:scale-95"
+            >
               <Link href={`${basePath}/students/export`}>
                 <Download className="mr-2 h-4 w-4" /> Export
               </Link>
             </Button>
-            <Button asChild>
+            <Button
+              asChild
+              className="transition-all duration-200 hover:scale-105 active:scale-95"
+            >
               <Link href={`${basePath}/students/new`}>
                 <Plus className="mr-2 h-4 w-4" /> Add Student
               </Link>

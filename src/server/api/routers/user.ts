@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 import { UserService } from "../services/user.service";
+import { StudentValidationService } from "../services/student-validation.service";
 import { SystemStatus, UserType, AccessScope, CreateUserInput, CreateProfileInput } from "../types/user";
 import { logger } from "../utils/logger";
 import { TRPCError } from "@trpc/server";
@@ -116,6 +117,45 @@ const userPreferencesSchema = z.object({
   };
 });
 
+// Student creation schema with validation
+const createStudentSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email address"),
+  username: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  campusId: z.string().optional(),
+  institutionId: z.string().optional(),
+  classId: z.string().optional(), // Add class enrollment support
+  profileData: z.object({
+    enrollmentNumber: z.string().optional(),
+    dateOfBirth: z.string().optional(),
+    address: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    postalCode: z.string().optional(),
+    country: z.string().optional(),
+    gender: z.enum(["MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY"]).optional(),
+    emergencyContact: z.object({
+      name: z.string().optional(),
+      phone: z.string().optional(),
+      relationship: z.string().optional(),
+    }).optional(),
+    notes: z.string().optional(),
+    sendInvitation: z.boolean().optional(),
+    requirePasswordChange: z.boolean().optional(),
+    createManualAccount: z.boolean().optional(),
+  }).optional()
+});
+
+// Student validation schema
+const validateStudentSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email address"),
+  username: z.string().optional(),
+  enrollmentNumber: z.string().optional(),
+  campusId: z.string().optional(),
+});
+
 export const userRouter = createTRPCRouter({
   // Get current user
   getCurrent: protectedProcedure
@@ -220,6 +260,19 @@ export const userRouter = createTRPCRouter({
           });
         }
 
+        // If user is a student, get the student profile ID for the response
+        if (input.userType === 'CAMPUS_STUDENT') {
+          const studentProfile = await ctx.prisma.studentProfile.findUnique({
+            where: { userId: user.id },
+            select: { id: true }
+          });
+
+          return {
+            ...user,
+            studentProfileId: studentProfile?.id
+          };
+        }
+
         return user;
       } catch (error) {
         logger.error('Error creating user', { error: error instanceof Error ? error.message : 'Unknown error' });
@@ -228,6 +281,60 @@ export const userRouter = createTRPCRouter({
           message: error instanceof Error ? error.message : 'Failed to create user',
         });
       }
+    }),
+
+  // Validate student before creation
+  validateStudent: protectedProcedure
+    .input(validateStudentSchema)
+    .mutation(async ({ ctx, input }) => {
+      const validationService = new StudentValidationService(ctx.prisma);
+
+      const createStudentInput = {
+        name: input.name,
+        email: input.email,
+        username: input.username,
+        userType: 'CAMPUS_STUDENT',
+        campusId: input.campusId,
+        profileData: {
+          enrollmentNumber: input.enrollmentNumber
+        }
+      };
+
+      return validationService.validateStudentCreation(createStudentInput);
+    }),
+
+  // Create student with graceful error handling
+  createStudent: protectedProcedure
+    .input(createStudentSchema)
+    .mutation(async ({ ctx, input }) => {
+      const validationService = new StudentValidationService(ctx.prisma);
+
+      // Get the current user's institution
+      const currentUser = await ctx.prisma.user.findUnique({
+        where: { id: ctx.session.user.id },
+        select: { institutionId: true }
+      });
+
+      if (!currentUser) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Current user not found',
+        });
+      }
+
+      const createStudentInput = {
+        name: input.name,
+        email: input.email,
+        username: input.username,
+        userType: 'CAMPUS_STUDENT',
+        phoneNumber: input.phoneNumber,
+        institutionId: currentUser.institutionId,
+        campusId: input.campusId,
+        classId: input.classId, // Include class enrollment
+        profileData: input.profileData
+      };
+
+      return validationService.createStudentSafely(createStudentInput);
     }),
 
   get: protectedProcedure

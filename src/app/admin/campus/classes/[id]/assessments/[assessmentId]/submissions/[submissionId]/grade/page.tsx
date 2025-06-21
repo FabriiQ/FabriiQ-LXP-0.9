@@ -2,7 +2,7 @@ import React from 'react';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { api } from '@/trpc/server';
+import { prisma } from '@/server/db';
 import { ClassLayout } from '../../../../../components/ClassLayout';
 import { 
   Card, 
@@ -13,10 +13,10 @@ import {
   CardTitle 
 } from '@/components/ui/data-display/card';
 import { Button } from '@/components/ui/button';
-import { 
-  ArrowLeft, 
-  User, 
-  Calendar, 
+import {
+  ChevronLeft,
+  User,
+  Calendar,
   CheckCircle2,
   FileText
 } from 'lucide-react';
@@ -31,25 +31,46 @@ export const metadata: Metadata = {
   description: 'Grade a student assessment submission',
 };
 
-export default async function GradeSubmissionPage({ 
-  params 
-}: { 
-  params: { id: string; assessmentId: string; submissionId: string } 
+export default async function GradeSubmissionPage({
+  params
+}: {
+  params: Promise<{ id: string; assessmentId: string; submissionId: string }>
 }) {
-  const { id: classId, assessmentId, submissionId } = params;
+  const { id: classId, assessmentId, submissionId } = await params;
   
   try {
     // Fetch assessment details
-    const assessment = await api.assessment.getById({ 
-      assessmentId,
-      includeQuestions: true 
+    const assessment = await prisma.assessment.findUnique({
+      where: { id: assessmentId },
+      include: {
+        subject: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
     });
-    
+
     // Fetch submission details
-    const submission = await api.assessment.getSubmission({ 
-      id: submissionId 
+    const submission = await prisma.assessmentSubmission.findUnique({
+      where: { id: submissionId },
+      include: {
+        student: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
     });
-    
+
     if (!assessment || !submission) {
       return notFound();
     }
@@ -70,7 +91,7 @@ export default async function GradeSubmissionPage({
               <div className="flex items-center gap-2 mb-1">
                 <Link href={`/admin/campus/classes/${classId}/assessments/${assessmentId}/submissions`}>
                   <Button size="sm" variant="ghost">
-                    <ArrowLeft className="h-4 w-4 mr-1" />
+                    <ChevronLeft className="h-4 w-4 mr-1" />
                     Back to Submissions
                   </Button>
                 </Link>
@@ -134,8 +155,8 @@ export default async function GradeSubmissionPage({
                       <p>{assessment.title}</p>
                     </div>
                     <div>
-                      <h3 className="text-sm font-medium mb-1">Category</h3>
-                      <p>{assessment.category}</p>
+                      <h3 className="text-sm font-medium mb-1">Subject</h3>
+                      <p>{assessment.subject.name}</p>
                     </div>
                     <div>
                       <h3 className="text-sm font-medium mb-1">Maximum Score</h3>

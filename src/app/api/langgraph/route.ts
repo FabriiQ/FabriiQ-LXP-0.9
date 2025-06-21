@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Client } from '@langchain/langgraph-sdk';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/server/auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export async function POST(req: NextRequest) {
   // Verify authentication

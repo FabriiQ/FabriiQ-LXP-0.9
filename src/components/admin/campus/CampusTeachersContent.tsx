@@ -201,12 +201,19 @@ export function CampusTeachersContent({
         </div>
         {!isCoordinator && (
           <div className="flex gap-2">
-            <Button variant="outline" asChild>
+            <Button
+              variant="outline"
+              asChild
+              className="transition-all duration-200 hover:scale-105 active:scale-95"
+            >
               <Link href={`${basePath}/teachers/import`}>
                 <Upload className="mr-2 h-4 w-4" /> Import
               </Link>
             </Button>
-            <Button asChild>
+            <Button
+              asChild
+              className="transition-all duration-200 hover:scale-105 active:scale-95"
+            >
               <Link href={`${basePath}/teachers/new`}>
                 <Plus className="mr-2 h-4 w-4" /> Add Teacher
               </Link>

@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { UserType } from "@prisma/client";
 import { SystemAdminCacheService } from "../services/system-admin-cache.service";
 import { format } from "date-fns";
+import { generateEnrollmentNumber } from "@/utils/enrollment-number";
 
 /**
  * System Analytics Router
@@ -1607,35 +1608,58 @@ export const systemAnalyticsRouter = createTRPCRouter({
                 continue;
               }
 
-              // Create new user
-              await ctx.prisma.user.create({
-                data: {
-                  name: `${firstName} ${lastName}`,
-                  email,
-                  username: email, // Use email as username
-                  userType: 'STUDENT', // Use STUDENT to match existing data
-                  status: 'ACTIVE',
-                  primaryCampusId: campusId,
-                  institution: {
-                    connect: { id: campus.institutionId }
-                  },
-                  activeCampuses: {
-                    create: {
-                      campusId,
-                      status: 'ACTIVE',
-                      roleType: 'STUDENT' // Use STUDENT to match existing data
-                    }
-                  },
-                  studentProfile: {
-                    create: {
-                      enrollmentNumber: mappedData.enrollmentNumber || `ST${Date.now().toString().slice(-6)}`,
-                      // Add other student profile fields as needed
-                    }
-                  }
-                }
-              });
+              // Create new user with enrollment number collision handling
+              let enrollmentNumber = mappedData.enrollmentNumber || generateEnrollmentNumber('ST');
+              let retryCount = 0;
+              const maxRetries = 5;
 
-              results.success++;
+              while (retryCount < maxRetries) {
+                try {
+                  await ctx.prisma.user.create({
+                    data: {
+                      name: `${firstName} ${lastName}`,
+                      email,
+                      username: email, // Use email as username
+                      userType: 'STUDENT', // Use STUDENT to match existing data
+                      status: 'ACTIVE',
+                      primaryCampusId: campusId,
+                      institution: {
+                        connect: { id: campus.institutionId }
+                      },
+                      activeCampuses: {
+                        create: {
+                          campusId,
+                          status: 'ACTIVE',
+                          roleType: 'STUDENT' // Use STUDENT to match existing data
+                        }
+                      },
+                      studentProfile: {
+                        create: {
+                          enrollmentNumber,
+                          // Add other student profile fields as needed
+                        }
+                      }
+                    }
+                  });
+                  results.success++; // Increment success counter on successful creation
+                  break; // Success, exit the retry loop
+                } catch (error: any) {
+                  // Check if it's a unique constraint error on enrollmentNumber
+                  if (error.code === 'P2002' && error.meta?.target?.includes('enrollmentNumber')) {
+                    retryCount++;
+                    if (retryCount >= maxRetries) {
+                      console.error('Failed to generate unique enrollment number after multiple attempts for:', email);
+                      results.failed++;
+                      break; // Exit retry loop and continue with next student
+                    }
+                    // Generate a new enrollment number and retry
+                    enrollmentNumber = generateEnrollmentNumber('ST');
+                    continue;
+                  }
+                  // If it's not an enrollment number collision, re-throw the error
+                  throw error;
+                }
+              }
             }
           } catch (error) {
             console.error('Error processing student record:', error);

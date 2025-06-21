@@ -4,6 +4,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { CreateButton } from "@/components/ui/loading-button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/utils/api";
 import { useToast } from "@/components/ui/feedback/toast";
@@ -245,9 +246,9 @@ function TermDialogContent({
             helperText={selectedAcademicCycle?.endDate ? `Must be on or before ${format(new Date(selectedAcademicCycle.endDate), 'MMM dd, yyyy')}` : undefined}
           />
         </div>
-        <Button type="submit" disabled={createTerm.isLoading}>
-          {createTerm.isLoading ? "Creating..." : "Create Term"}
-        </Button>
+        <CreateButton type="submit" loading={createTerm.isLoading}>
+          Create Term
+        </CreateButton>
       </form>
     </>
   );

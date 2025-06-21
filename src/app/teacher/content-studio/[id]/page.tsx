@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/ui/atoms/page-header";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 
 // Import the WorksheetDetail component
-import { WorksheetDetailPage } from "@/features/content-studio/components/WorksheetDetailPage";
+import { WorksheetDetailPage } from "@/features/contnet-studio/components/WorksheetDetailPage";
 
 export default function ContentDetailPage() {
   const params = useParams();

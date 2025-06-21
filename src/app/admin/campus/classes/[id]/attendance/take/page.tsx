@@ -55,8 +55,8 @@ export default function TakeAttendancePage() {
   }, { enabled: !!classId });
   
   // Fetch enrolled students with the correct endpoint
-  const { data: enrolledStudents, isLoading: isLoadingStudents } = 
-    api.student.getStudentEnrollments.useQuery({
+  const { data: enrolledStudents, isLoading: isLoadingStudents } =
+    api.student.getClassEnrollments.useQuery({
       classId
     }, { enabled: !!classId });
   

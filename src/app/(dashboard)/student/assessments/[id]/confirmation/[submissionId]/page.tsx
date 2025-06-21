@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/use-toast';
 import { api } from '@/trpc/react';
@@ -9,17 +9,19 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
-export default function AssessmentConfirmationPage({ 
-  params 
-}: { 
-  params: { id: string; submissionId: string } 
+export default function AssessmentConfirmationPage({
+  params
+}: {
+  params: Promise<{ id: string; submissionId: string }>
 }) {
+  // Unwrap the params promise
+  const resolvedParams = use(params);
   const router = useRouter();
   const { toast } = useToast();
   
   // Get submission details
   const { data: submission, error } = api.assessment.getSubmissionResults.useQuery(
-    { id: params.submissionId },
+    { id: resolvedParams.submissionId },
     {
       retry: false,
       onError: (error) => {
@@ -77,8 +79,8 @@ export default function AssessmentConfirmationPage({
       
       <div className="mt-6">
         <SubmissionConfirmationPage
-          assessmentId={params.id}
-          submissionId={params.submissionId}
+          assessmentId={resolvedParams.id}
+          submissionId={resolvedParams.submissionId}
           className="w-full"
         />
       </div>

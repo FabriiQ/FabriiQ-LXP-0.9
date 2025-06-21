@@ -12,8 +12,8 @@ import {
   CardFooter
 } from '@/components/ui/data-display/card';
 import { Button } from '@/components/ui/button';
-import { 
-  ArrowLeft,
+import {
+  ChevronLeft,
   FileText,
   CheckCircle2,
   Download,
@@ -80,12 +80,12 @@ type SubmissionAnswer = {
   feedback?: string;
 };
 
-export default async function SubmissionDetailPage({ 
-  params 
-}: { 
-  params: { id: string; assessmentId: string; submissionId: string };
+export default async function SubmissionDetailPage({
+  params
+}: {
+  params: Promise<{ id: string; assessmentId: string; submissionId: string }>;
 }) {
-  const { id: classId, assessmentId, submissionId } = params;
+  const { id: classId, assessmentId, submissionId } = await params;
   
   try {
     // Fetch class details
@@ -144,7 +144,7 @@ export default async function SubmissionDetailPage({
           <div className="flex items-center gap-2 mb-6">
             <Link href={`/admin/campus/classes/${classId}/assessments/${assessmentId}/submissions`}>
               <Button size="sm" variant="ghost">
-                <ArrowLeft className="h-4 w-4 mr-1" />
+                <ChevronLeft className="h-4 w-4 mr-1" />
                 Back to Submissions
               </Button>
             </Link>

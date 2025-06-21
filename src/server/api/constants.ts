@@ -149,7 +149,8 @@ export enum AssessmentType {
   PORTFOLIO = "PORTFOLIO",
   PARTICIPATION = "PARTICIPATION",
   HOMEWORK = "HOMEWORK",
-  PRACTICE = "PRACTICE"
+  PRACTICE = "PRACTICE",
+  ESSAY = "ESSAY"
 }
 
 export enum ActivityPurpose {
@@ -192,7 +193,8 @@ export enum AssessmentCategory {
   ASSIGNMENT = "ASSIGNMENT",
   PROJECT = "PROJECT",
   PRACTICAL = "PRACTICAL",
-  CLASS_ACTIVITY = "CLASS_ACTIVITY"
+  CLASS_ACTIVITY = "CLASS_ACTIVITY",
+  ESSAY = "ESSAY"
 }
 
 export enum TermType {

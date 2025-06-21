@@ -44,3 +44,4 @@ export { createLessonPlanAgent } from './specialized/LessonPlanAgent';
 export { createSearchAgent } from './specialized/SearchAgent';
 export { createResourceAgent } from './specialized/ResourceAgent';
 export { createFeedbackAgent } from './specialized/FeedbackAgent';
+export { createEssayGradingAgent } from './specialized/EssayGradingAgent';

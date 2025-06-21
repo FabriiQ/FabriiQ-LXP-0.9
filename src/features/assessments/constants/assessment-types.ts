@@ -77,6 +77,15 @@ export const ASSESSMENT_TYPE_METADATA: Record<AssessmentCategory, {
     defaultPassingScore: 10,
     defaultWeightage: 5,
   },
+  [AssessmentCategory.ESSAY]: {
+    label: 'Essay',
+    description: 'Written essay assessment with rubric-based grading',
+    icon: 'FileTextIcon',
+    color: 'indigo',
+    defaultMaxScore: 100,
+    defaultPassingScore: 60,
+    defaultWeightage: 20,
+  },
   [AssessmentCategory.OTHER]: {
     label: 'Other',
     description: 'Custom assessment type',
@@ -102,6 +111,7 @@ export const PRINTABLE_ASSESSMENT_TYPES = [
   AssessmentCategory.TEST,
   AssessmentCategory.EXAM,
   AssessmentCategory.ASSIGNMENT,
+  AssessmentCategory.ESSAY,
 ];
 
 // Assessment types that support online submission
@@ -109,6 +119,7 @@ export const ONLINE_ASSESSMENT_TYPES = [
   AssessmentCategory.QUIZ,
   AssessmentCategory.TEST,
   AssessmentCategory.ASSIGNMENT,
+  AssessmentCategory.ESSAY,
 ];
 
 // Assessment types that support automatic grading

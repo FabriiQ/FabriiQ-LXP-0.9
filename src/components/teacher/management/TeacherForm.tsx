@@ -15,6 +15,7 @@ import {
 } from "~/components/ui/forms/form";
 import { Input } from "~/components/ui/forms/input";
 import { Button } from "~/components/ui/button";
+import { CreateButton, UpdateButton } from "@/components/ui/loading-button";
 import {
   Select,
   SelectContent,
@@ -348,12 +349,15 @@ export function TeacherForm({ campusId, campusName, subjects, userId, teacherId,
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && (
-                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-r-transparent"></div>
-              )}
-              {isEditing ? "Update Teacher" : "Create Teacher"}
-            </Button>
+            {isEditing ? (
+              <UpdateButton type="submit" loading={isSubmitting}>
+                Update Teacher
+              </UpdateButton>
+            ) : (
+              <CreateButton type="submit" loading={isSubmitting}>
+                Create Teacher
+              </CreateButton>
+            )}
           </CardContent>
         </form>
       </Form>

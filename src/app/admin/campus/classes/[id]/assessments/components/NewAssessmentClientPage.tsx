@@ -1,11 +1,22 @@
 'use client';
 
 import React from 'react';
-import { ChunkedAssessmentForm } from './form/ChunkedAssessmentForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft as ArrowLeftIcon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/ui/use-toast';
+import dynamic from 'next/dynamic';
+
+// Import the new ClassAssessmentCreator from features/assessments
+const DynamicClassAssessmentCreator = dynamic(
+  () => import('@/features/assessments/components/ClassAssessmentCreator').then(mod => ({ default: mod.ClassAssessmentCreator })),
+  {
+    loading: () => <div className="animate-pulse p-8 bg-gray-100 dark:bg-gray-800 rounded-lg">Loading assessment creator...</div>,
+    ssr: false
+  }
+);
 
 interface NewAssessmentClientPageProps {
   classId: string;
@@ -20,7 +31,38 @@ export function NewAssessmentClientPage({
   subjects = [],
   error
 }: NewAssessmentClientPageProps) {
+  const router = useRouter();
+  const { toast } = useToast();
+
   console.log('NewAssessmentClientPage - Subjects:', subjects);
+
+  // Handle assessment creation success
+  const handleAssessmentSave = async (assessmentData: any) => {
+    try {
+      // The ClassAssessmentCreator will handle the API call
+      // We just need to handle the success navigation
+      toast({
+        title: 'Success',
+        description: 'Assessment created successfully',
+        variant: 'success',
+      });
+
+      // Navigate back to assessments list
+      router.push(`/admin/campus/classes/${classId}/assessments`);
+    } catch (error) {
+      console.error('Error creating assessment:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create assessment. Please try again.',
+        variant: 'error',
+      });
+    }
+  };
+
+  const handleCancel = () => {
+    router.push(`/admin/campus/classes/${classId}/assessments`);
+  };
+
   // If there's an error, show error state
   if (error) {
     return (
@@ -59,10 +101,17 @@ export function NewAssessmentClientPage({
         </div>
       </div>
 
-      <ChunkedAssessmentForm
-        classId={classId}
+      {/* Use the new ClassAssessmentCreator component */}
+      <DynamicClassAssessmentCreator
+        initialValues={{
+          classId: classId,
+          title: '',
+          description: '',
+          instructions: '',
+        }}
         subjects={subjects}
-        action="create"
+        onSave={handleAssessmentSave}
+        onCancel={handleCancel}
       />
     </div>
   );

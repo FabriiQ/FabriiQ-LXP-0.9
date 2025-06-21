@@ -153,11 +153,7 @@ export const studentRouter = createTRPCRouter({
                   class: {
                     courseCampus: {
                       course: {
-                        programCourses: {
-                          some: {
-                            programId: input.programId
-                          }
-                        }
+                        programId: input.programId
                       }
                     }
                   }
@@ -208,7 +204,7 @@ export const studentRouter = createTRPCRouter({
         // For smaller datasets, process in the request
         // Get students with pagination to avoid memory issues
         const pageSize = 1000;
-        let allStudents = [];
+        let allStudents: any[] = [];
         let page = 0;
         let hasMore = true;
 
@@ -229,11 +225,7 @@ export const studentRouter = createTRPCRouter({
                     class: {
                       courseCampus: {
                         course: {
-                          programCourses: {
-                            some: {
-                              programId: input.programId
-                            }
-                          }
+                          programId: input.programId
                         }
                       }
                     }
@@ -898,12 +890,21 @@ export const studentRouter = createTRPCRouter({
       const students = await ctx.prisma.studentProfile.findMany({
         where: {
           user: {
-            activeCampuses: {
-              some: {
-                campusId: campusId,
-                status: 'ACTIVE',
+            userType: 'CAMPUS_STUDENT',
+            status: 'ACTIVE',
+            OR: [
+              {
+                activeCampuses: {
+                  some: {
+                    campusId: campusId,
+                    status: 'ACTIVE',
+                  },
+                },
               },
-            },
+              {
+                primaryCampusId: campusId
+              }
+            ]
           },
         },
         include: {
@@ -925,7 +926,7 @@ export const studentRouter = createTRPCRouter({
       return students;
     }),
 
-  getStudentEnrollments: protectedProcedure
+  getClassEnrollments: protectedProcedure
     .input(
       z.object({
         classId: z.string(),
@@ -1238,7 +1239,7 @@ export const studentRouter = createTRPCRouter({
     }),
 
   // Get student enrollments and available programs/terms for a campus
-  getStudentEnrollments: protectedProcedure
+  getStudentEnrollmentData: protectedProcedure
     .input(z.object({
       studentId: z.string(),
       campusId: z.string(),

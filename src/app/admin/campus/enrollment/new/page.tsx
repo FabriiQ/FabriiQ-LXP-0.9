@@ -53,12 +53,21 @@ export default async function CreateEnrollmentPage() {
   const students = await prisma.studentProfile.findMany({
     where: {
       user: {
-        activeCampuses: {
-          some: {
-            campusId: user.primaryCampusId,
-            status: 'ACTIVE',
+        userType: 'CAMPUS_STUDENT',
+        status: 'ACTIVE',
+        OR: [
+          {
+            activeCampuses: {
+              some: {
+                campusId: user.primaryCampusId,
+                status: 'ACTIVE',
+              }
+            }
+          },
+          {
+            primaryCampusId: user.primaryCampusId
           }
-        }
+        ]
       }
     },
     include: {
@@ -106,7 +115,7 @@ export default async function CreateEnrollmentPage() {
 
   // Map students to the expected format
   const formattedStudents = students.map(student => ({
-    id: student.id,
+    id: student.id, // Use student profile ID for enrollment
     name: student.user.name || 'Unknown',
     email: student.user.email || ''
   }));

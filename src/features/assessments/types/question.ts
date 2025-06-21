@@ -74,14 +74,38 @@ export const shortAnswerQuestionSchema = baseQuestionSchema.extend({
 // Essay question schema
 export const essayQuestionSchema = baseQuestionSchema.extend({
   type: z.literal(QuestionType.ESSAY),
+  // Essay-specific settings
+  wordLimit: z.object({
+    min: z.number().min(0).optional(),
+    max: z.number().min(1).optional(),
+  }).optional(),
+  timeLimit: z.number().min(1).optional(), // in minutes
+  allowDrafts: z.boolean().default(true),
+  enablePlagiarismCheck: z.boolean().default(false),
+  plagiarismThreshold: z.number().min(0).max(100).default(20), // percentage
+  // AI grading settings
+  enableAIGrading: z.boolean().default(false),
+  aiGradingMode: z.enum(['ASSIST', 'AUTO', 'DISABLED']).default('DISABLED'),
+  // Rubric for grading
   rubric: z.array(z.object({
-    criterion: z.string(),
-    points: z.number(),
+    id: z.string().optional(),
+    criterion: z.string().min(1, 'Criterion name is required'),
+    description: z.string().optional(),
+    points: z.number().min(0),
+    weight: z.number().min(0).max(100).default(1),
+    bloomsLevel: z.string().optional(),
     levels: z.array(z.object({
-      description: z.string(),
-      score: z.number(),
-    })),
+      id: z.string().optional(),
+      name: z.string().min(1, 'Level name is required'),
+      description: z.string().min(1, 'Level description is required'),
+      score: z.number().min(0),
+      feedback: z.string().optional(),
+    })).min(2, 'At least 2 performance levels are required'),
   })).optional(),
+  // Sample answer for AI grading reference
+  sampleAnswer: z.string().optional(),
+  // Keywords/concepts to look for
+  keywordsConcepts: z.array(z.string()).optional(),
 });
 
 // Fill in the blank question schema

@@ -10,11 +10,17 @@
 export { Button, buttonVariants } from './core/button';
 export { Input } from './core/input';
 export {
+  Card,
   Card as CoreCard,
+  CardHeader,
   CardHeader as CoreCardHeader,
+  CardTitle,
   CardTitle as CoreCardTitle,
+  CardDescription,
   CardDescription as CoreCardDescription,
+  CardContent,
   CardContent as CoreCardContent,
+  CardFooter,
   CardFooter as CoreCardFooter
 } from './core/card';
 export {

@@ -64,7 +64,7 @@ export function ActivityGrading({
   });
 
   // Fetch students for this class
-  const { data: students, isLoading: isLoadingStudents } = api.student.getStudentEnrollments.useQuery({
+  const { data: students, isLoading: isLoadingStudents } = api.student.getClassEnrollments.useQuery({
     classId
   });
 

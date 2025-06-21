@@ -48,7 +48,7 @@ const formSchema = z.object({
   dueDate: z.date({
     required_error: "Due date is required",
   }).min(new Date(), "Due date must be in the future"),
-  assessmentType: z.enum(["QUIZ", "TEST", "ASSIGNMENT", "PROJECT", "EXAM"]),
+  assessmentType: z.enum(["QUIZ", "TEST", "ASSIGNMENT", "PROJECT", "EXAM", "ESSAY"]),
   category: z.nativeEnum(AssessmentCategory),
   gradingType: z.nativeEnum(GradingType),
   status: z.nativeEnum(SystemStatus),
@@ -200,6 +200,7 @@ export default function AssessmentCreator({ classId }: AssessmentCreatorProps) {
                         <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
                         <SelectItem value="PROJECT">Project</SelectItem>
                         <SelectItem value="EXAM">Exam</SelectItem>
+                        <SelectItem value="ESSAY">Essay</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

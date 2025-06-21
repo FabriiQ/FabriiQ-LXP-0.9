@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/trpc/react';
 import { useResponsive } from '@/lib/hooks/use-responsive';
 import { ClassMetricsGrid } from './ClassMetricsGrid';
-import { ClassQuickActions } from './ClassQuickActions';
 import {
   Card,
   CardContent,
@@ -38,12 +37,31 @@ interface ClassOverviewProps {
   classId: string;
 }
 
+// Extended interface for class metrics that includes both ClassPerformance and custom properties
+interface ExtendedClassMetrics {
+  // Standard ClassPerformance properties
+  attendanceRate?: number;
+  participationRate?: number;
+  completionRate?: number;
+  averageGrade?: number;
+  passingRate?: number;
+  activeStudents?: number;
+  presentCount?: number;
+  absentCount?: number;
+  lateCount?: number;
+  activitiesCreated?: number;
+
+  // Custom properties that may be added by the API
+  totalActivities?: number;
+  totalAssessments?: number;
+  assessmentCompletionRate?: number;
+}
+
 /**
  * ClassOverview component for displaying class overview page
  *
  * Features:
  * - Key metrics at the top
- * - Quick actions for common tasks
  * - Recent activities and upcoming assessments
  * - Student attendance summary
  * - Mobile-first responsive design
@@ -89,42 +107,45 @@ export function ClassOverview({ classId }: ClassOverviewProps) {
     }
   );
 
+  // Cast metrics to extended type for better type safety
+  const extendedMetrics = classMetrics as ExtendedClassMetrics;
+
   // Prepare metrics data
   const metrics = [
     {
       id: 'students',
       label: 'Students',
-      value: classMetrics?.studentCount || 0,
+      value: extendedMetrics?.activeStudents || 0,
       icon: <Users className="h-5 w-5" />,
       color: 'blue'
     },
     {
       id: 'attendance',
       label: 'Attendance Rate',
-      value: `${classMetrics?.attendanceRate || 0}%`,
+      value: `${extendedMetrics?.attendanceRate || 0}%`,
       icon: <Calendar className="h-5 w-5" />,
-      progress: classMetrics?.attendanceRate || 0,
+      progress: extendedMetrics?.attendanceRate || 0,
       color: 'green'
     },
     {
       id: 'activities',
       label: 'Activities',
-      value: classMetrics?.activityCount || 0,
+      value: extendedMetrics?.totalActivities || extendedMetrics?.activitiesCreated || 0,
       icon: <BookOpen className="h-5 w-5" />,
       change: {
-        value: classMetrics?.activityChangePercent || 0,
-        isPositive: (classMetrics?.activityChangePercent || 0) >= 0
+        value: extendedMetrics?.completionRate || 0,
+        isPositive: (extendedMetrics?.completionRate || 0) >= 0
       },
       color: 'orange'
     },
     {
       id: 'assessments',
       label: 'Assessments',
-      value: classMetrics?.assessmentCount || 0,
+      value: extendedMetrics?.totalAssessments || 0,
       icon: <ClipboardList className="h-5 w-5" />,
       change: {
-        value: classMetrics?.assessmentChangePercent || 0,
-        isPositive: (classMetrics?.assessmentChangePercent || 0) >= 0
+        value: extendedMetrics?.assessmentCompletionRate || 0,
+        isPositive: (extendedMetrics?.assessmentCompletionRate || 0) >= 0
       },
       color: 'purple'
     }
@@ -146,9 +167,9 @@ export function ClassOverview({ classId }: ClassOverviewProps) {
       <div className="space-y-2">
         <h2 className="text-2xl font-bold">{classData?.name || 'Class Overview'}</h2>
         <p className="text-muted-foreground">
-          {classData?.subject?.name && (
+          {classData?.courseCampus?.course?.name && (
             <>
-              <span className="font-medium">{classData.subject.name}</span>
+              <span className="font-medium">{classData.courseCampus.course.name}</span>
               {' • '}
             </>
           )}
@@ -164,11 +185,7 @@ export function ClassOverview({ classId }: ClassOverviewProps) {
         isLoading={isLoadingMetrics}
       />
 
-      {/* Quick actions */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium">Quick Actions</h3>
-        <ClassQuickActions classId={classId} />
-      </div>
+
 
       {/* Tabs for recent content */}
       <Tabs defaultValue="activities" className="space-y-4">
@@ -216,12 +233,12 @@ export function ClassOverview({ classId }: ClassOverviewProps) {
                         <div>
                           <div className="font-medium">{activity.title}</div>
                           <div className="text-sm text-muted-foreground">
-                            {activity.activityType}
+                            {activity.purpose || 'Activity'}
                           </div>
                         </div>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {formatDate(activity.createdAt)}
+                        {formatDate(activity.createdAt.toISOString())}
                       </div>
                     </div>
                   ))}
@@ -297,16 +314,16 @@ export function ClassOverview({ classId }: ClassOverviewProps) {
                         <div>
                           <div className="font-medium">{assessment.title}</div>
                           <div className="text-sm text-muted-foreground">
-                            {assessment.assessmentType}
+                            {assessment.subject?.name || 'Assessment'}
                           </div>
                         </div>
                       </div>
                       <Badge variant={
-                        new Date(assessment.dueDate) < new Date()
+                        assessment.dueDate && new Date(assessment.dueDate) < new Date()
                           ? "destructive"
                           : "outline"
                       }>
-                        {formatDate(assessment.dueDate)}
+                        {assessment.dueDate ? formatDate(assessment.dueDate.toISOString()) : 'No due date'}
                       </Badge>
                     </div>
                   ))}
@@ -358,7 +375,7 @@ export function ClassOverview({ classId }: ClassOverviewProps) {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-medium">Overall Attendance Rate</div>
-                    <div className="text-2xl font-bold">{classMetrics?.attendanceRate || 0}%</div>
+                    <div className="text-2xl font-bold">{extendedMetrics?.attendanceRate || 0}%</div>
                   </div>
                   <Button
                     variant="default"
@@ -373,21 +390,21 @@ export function ClassOverview({ classId }: ClassOverviewProps) {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Present</span>
-                      <span className="font-medium">{classMetrics?.presentCount || 0} students</span>
+                      <span className="font-medium">{extendedMetrics?.presentCount || 0} students</span>
                     </div>
-                    <Progress value={classMetrics?.presentPercentage || 0} className="h-2 bg-muted" />
+                    <Progress value={extendedMetrics?.attendanceRate || 0} className="h-2 bg-muted" />
 
                     <div className="flex justify-between text-sm">
                       <span>Absent</span>
-                      <span className="font-medium">{classMetrics?.absentCount || 0} students</span>
+                      <span className="font-medium">{extendedMetrics?.absentCount || 0} students</span>
                     </div>
-                    <Progress value={classMetrics?.absentPercentage || 0} className="h-2 bg-muted" />
+                    <Progress value={extendedMetrics?.absentCount ? (extendedMetrics.absentCount / ((extendedMetrics.presentCount || 0) + extendedMetrics.absentCount + (extendedMetrics.lateCount || 0))) * 100 : 0} className="h-2 bg-muted" />
 
                     <div className="flex justify-between text-sm">
                       <span>Late</span>
-                      <span className="font-medium">{classMetrics?.lateCount || 0} students</span>
+                      <span className="font-medium">{extendedMetrics?.lateCount || 0} students</span>
                     </div>
-                    <Progress value={classMetrics?.latePercentage || 0} className="h-2 bg-muted" />
+                    <Progress value={extendedMetrics?.lateCount ? (extendedMetrics.lateCount / ((extendedMetrics.presentCount || 0) + (extendedMetrics.absentCount || 0) + extendedMetrics.lateCount)) * 100 : 0} className="h-2 bg-muted" />
                   </div>
                 </div>
               </div>
@@ -418,8 +435,8 @@ export function ClassOverview({ classId }: ClassOverviewProps) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm font-medium">Average Score</div>
-                <div className="text-2xl font-bold">{classMetrics?.averageScore || 0}%</div>
+                <div className="text-sm font-medium">Average Grade</div>
+                <div className="text-2xl font-bold">{extendedMetrics?.averageGrade || 0}%</div>
               </div>
               <Button
                 variant="outline"
@@ -432,31 +449,31 @@ export function ClassOverview({ classId }: ClassOverviewProps) {
             </div>
 
             <div>
-              <div className="mb-2 text-sm font-medium">Performance Distribution</div>
+              <div className="mb-2 text-sm font-medium">Performance Metrics</div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>Excellent (80-100%)</span>
-                  <span className="font-medium">{classMetrics?.excellentCount || 0} students</span>
+                  <span>Passing Rate</span>
+                  <span className="font-medium">{extendedMetrics?.passingRate || 0}%</span>
                 </div>
-                <Progress value={classMetrics?.excellentPercentage || 0} className="h-2 bg-muted" />
+                <Progress value={extendedMetrics?.passingRate || 0} className="h-2 bg-muted" />
 
                 <div className="flex justify-between text-sm">
-                  <span>Good (60-79%)</span>
-                  <span className="font-medium">{classMetrics?.goodCount || 0} students</span>
+                  <span>Completion Rate</span>
+                  <span className="font-medium">{extendedMetrics?.completionRate || 0}%</span>
                 </div>
-                <Progress value={classMetrics?.goodPercentage || 0} className="h-2 bg-muted" />
+                <Progress value={extendedMetrics?.completionRate || 0} className="h-2 bg-muted" />
 
                 <div className="flex justify-between text-sm">
-                  <span>Average (40-59%)</span>
-                  <span className="font-medium">{classMetrics?.averageCount || 0} students</span>
+                  <span>Participation Rate</span>
+                  <span className="font-medium">{extendedMetrics?.participationRate || 0}%</span>
                 </div>
-                <Progress value={classMetrics?.averagePercentage || 0} className="h-2 bg-muted" />
+                <Progress value={extendedMetrics?.participationRate || 0} className="h-2 bg-muted" />
 
                 <div className="flex justify-between text-sm">
-                  <span>Below Average (0-39%)</span>
-                  <span className="font-medium">{classMetrics?.belowAverageCount || 0} students</span>
+                  <span>Assessment Completion</span>
+                  <span className="font-medium">{extendedMetrics?.assessmentCompletionRate || 0}%</span>
                 </div>
-                <Progress value={classMetrics?.belowAveragePercentage || 0} className="h-2 bg-muted" />
+                <Progress value={extendedMetrics?.assessmentCompletionRate || 0} className="h-2 bg-muted" />
               </div>
             </div>
           </div>

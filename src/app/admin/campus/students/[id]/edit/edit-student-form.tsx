@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { api } from "@/utils/api";
 import { Button } from "@/components/ui/button";
+import { SaveButton } from "@/components/ui/loading-button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/data-display/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/forms/form";
 import { Input } from "@/components/ui/input";
@@ -424,14 +425,13 @@ export function EditStudentForm({ student, userId }: EditStudentFormProps) {
             <Button variant="outline" type="button" asChild>
               <Link href={`/admin/campus/students/${student.id}`}>Cancel</Link>
             </Button>
-            <Button 
-              type="submit" 
-              disabled={isSubmitting}
-              className="gap-2"
+            <SaveButton
+              type="submit"
+              loading={isSubmitting}
+              icon={<Save className="h-4 w-4" />}
             >
-              {isSubmitting ? "Saving..." : "Save Changes"}
-              <Save className="h-4 w-4" />
-            </Button>
+              Save Changes
+            </SaveButton>
           </CardFooter>
         </form>
       </Form>

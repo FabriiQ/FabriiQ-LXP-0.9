@@ -108,7 +108,7 @@ export function AttendanceReports({
   });
 
   // Fetch students in the class
-  const { data: enrollments, isLoading: isLoadingStudents } = api.student.getStudentEnrollments.useQuery(
+  const { data: enrollments, isLoading: isLoadingStudents } = api.student.getClassEnrollments.useQuery(
     { classId: classId !== 'all-classes' ? classId : '' },
     { enabled: classId !== 'all-classes' }
   );

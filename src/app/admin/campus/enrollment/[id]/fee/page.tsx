@@ -12,7 +12,7 @@ import { FeeDetailCard } from "@/components/shared/entities/fee/fee-detail-card"
 import { EnrollmentFeeForm } from "@/components/shared/entities/fee/enrollment-fee-form";
 import { api } from "@/trpc/react";
 import { useToast } from "@/components/ui/use-toast";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { LoadingSpinner } from "@/components/ui/loading";
 
 export default function EnrollmentFeePage({ params }: { params: { id: string } }) {
   const { id } = params;

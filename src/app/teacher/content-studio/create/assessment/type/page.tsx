@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/atoms/page-header";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
-import { ArrowLeft, CheckSquare, FileQuestion, MessageSquare, Briefcase, Award, PenTool } from "lucide-react";
+import { ArrowLeft, CheckSquare, FileQuestion, MessageSquare, Briefcase, Award, PenTool, FileText } from "lucide-react";
 import Link from "next/link";
 import { AssessmentType } from "@/server/api/constants";
 
@@ -50,6 +50,12 @@ export default function AssessmentTypePage() {
       title: "Homework",
       description: "Take-home assignments",
       icon: <PenTool className="h-8 w-8 mb-2" />
+    },
+    {
+      id: AssessmentType.ESSAY,
+      title: "Essay",
+      description: "Written essay assessment with AI-powered grading and plagiarism detection",
+      icon: <FileText className="h-8 w-8 mb-2" />
     }
   ];
 

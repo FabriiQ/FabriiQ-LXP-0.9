@@ -10,7 +10,8 @@ import {
   BookOpen,
   Award,
   Clock,
-  Check
+  Check,
+  PenTool
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AssessmentCategory } from '@/server/api/constants';
@@ -86,6 +87,17 @@ const ASSESSMENT_TYPES = [
     bloomsLevels: ['Apply', 'Analyze'],
     features: ['Skill demonstration', 'Real-world application', 'Performance-based'],
     color: 'bg-teal-100 text-teal-800 border-teal-200'
+  },
+  {
+    type: AssessmentCategory.ESSAY,
+    title: 'Essay',
+    description: 'Written essay assessment with AI-powered grading and plagiarism detection',
+    icon: PenTool,
+    duration: '45-120 minutes',
+    difficulty: 'Medium',
+    bloomsLevels: ['Analyze', 'Evaluate', 'Create'],
+    features: ['AI grading assistance', 'Plagiarism detection', 'Rich text editor', 'Rubric-based scoring'],
+    color: 'bg-indigo-100 text-indigo-800 border-indigo-200'
   }
 ];
 

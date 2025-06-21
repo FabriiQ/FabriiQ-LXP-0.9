@@ -9,7 +9,7 @@ import { api } from '@/trpc/react';
 import { ArrowLeft } from 'lucide-react';
 import { DiscountTypeForm, DiscountTypeFormValues } from '@/components/shared/entities/fee';
 import { useToast } from '@/components/ui/use-toast';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { LoadingSpinner } from '@/components/ui/loading';
 
 export default function EditDiscountTypePage({ params }: { params: { id: string } }) {
   const { id } = params;

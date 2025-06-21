@@ -70,8 +70,8 @@ export default function EditAttendancePage() {
   }, { enabled: !!classId });
   
   // Fetch enrolled students to ensure we have all students
-  const { data: enrolledStudents, isLoading: isLoadingStudents } = 
-    api.student.getStudentEnrollments.useQuery({
+  const { data: enrolledStudents, isLoading: isLoadingStudents } =
+    api.student.getClassEnrollments.useQuery({
       classId
     }, { enabled: !!classId });
     

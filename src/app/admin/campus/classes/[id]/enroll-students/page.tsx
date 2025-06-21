@@ -86,9 +86,9 @@ export default function EnrollStudentsPage() {
   );
   
   // Fetch enrolled students
-  const { data: enrollmentsData, refetch: refetchEnrollments } = api.student.getStudentEnrollments.useQuery(
+  const { data: enrollmentsData, refetch: refetchEnrollments } = api.student.getClassEnrollments.useQuery(
     { classId },
-    { 
+    {
       enabled: !!classId,
       retry: 1,
       onError: (error) => {

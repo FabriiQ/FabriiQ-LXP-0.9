@@ -14,6 +14,7 @@ import { courseRouter } from "./routers/course";
 import { subjectRouter } from "./routers/subject";
 import { classRouter } from "./routers/class";
 import { assessmentRouter } from "./routers/assessment";
+import { essayAssessmentRouter } from "./routers/essay-assessment";
 import { submissionRouter } from "./routers/submission";
 import { feedbackRouter } from "./routers/feedback";
 import { analyticsRouter } from "./routers/analytics";
@@ -119,6 +120,7 @@ export const appRouter = createTRPCRouter({
   subject: subjectRouter,
   class: classRouter,
   assessment: assessmentRouter,
+  essayAssessment: essayAssessmentRouter,
   submission: submissionRouter,
   feedback: feedbackRouter,
   analytics: analyticsRouter,

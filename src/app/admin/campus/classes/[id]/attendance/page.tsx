@@ -84,9 +84,9 @@ export default function ClassAttendancePage() {
   );
 
   // Query student enrollments
-  const { data: studentEnrollments } = api.student.getStudentEnrollments.useQuery({
+  const { data: studentEnrollments } = api.student.getClassEnrollments.useQuery({
     classId,
-  }, { 
+  }, {
     enabled: !!classId && !!selectedDate,
   });
   

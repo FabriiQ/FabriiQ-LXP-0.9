@@ -85,7 +85,7 @@ export function StudentExportDialog({ campusId }: StudentExportDialogProps) {
   }));
 
   // Get active terms
-  const { data: academicCycleData = { activeTerms: [] } } = api.student.getStudentEnrollments.useQuery(
+  const { data: academicCycleData = { activeTerms: [] } } = api.student.getStudentEnrollmentData.useQuery(
     {
       studentId: 'placeholder', // We just need the terms, not specific to a student
       campusId

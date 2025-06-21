@@ -42,14 +42,15 @@ export default function ClassActivitiesPage() {
     }
   });
 
-  const { data: activities, isLoading } = api.class.listActivities.useQuery({
+  const { data: activities, isLoading } = api.activity.list.useQuery({
     classId,
     purpose: purpose === 'ALL' ? undefined : purpose,
     learningType: learningType === 'ALL' ? undefined : learningType,
     assessmentType: assessmentType === 'ALL' ? undefined : assessmentType,
     status,
     lessonPlanId: lessonPlanId || undefined,
-    take: 50
+    page: 1,
+    pageSize: 50
   });
 
   const columns = [

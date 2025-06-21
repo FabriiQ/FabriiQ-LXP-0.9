@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { h5pPlayer, h5pEditor } from '@/server/h5p/h5p-server';
-import { prisma } from '@/server/db/client';
+import { prisma } from '@/server/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 

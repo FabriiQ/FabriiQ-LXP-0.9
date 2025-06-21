@@ -72,8 +72,8 @@ export function AttendanceRecorder({
   });
 
   // Fetch students in the class
-  const { data: students, isLoading: isLoadingStudents } = api.student.getStudentEnrollments.useQuery(
-    { classId, campusId },
+  const { data: students, isLoading: isLoadingStudents } = api.student.getClassEnrollments.useQuery(
+    { classId },
     { enabled: !!classId }
   );
 

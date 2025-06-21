@@ -1,5 +1,6 @@
 import { PrismaClient, SystemStatus, UserType, AccessScope } from '@prisma/client';
 import { hash } from 'bcryptjs';
+import { generateEnrollmentNumber } from '../../utils/enrollment-number';
 
 /**
  * Seed file for generating 500 Pakistani students for each class
@@ -78,11 +79,9 @@ function generateEmail(username: string): string {
   return `${username}@example.com`;
 }
 
-// Helper function to generate an enrollment number
-function generateEnrollmentNumber(prefix: string = 'SIS'): string {
-  const year = new Date().getFullYear().toString().slice(-2);
-  const random = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
-  return `${prefix}-${year}${random}`;
+// Helper function to generate an enrollment number with prefix
+function generateEnrollmentNumberWithPrefix(prefix: string = 'SIS'): string {
+  return generateEnrollmentNumber(prefix);
 }
 
 // Main function to seed bulk students
@@ -194,7 +193,7 @@ export async function seedBulkStudents(prisma: PrismaClient, studentsPerClass: n
           const name = generatePakistaniName(gender);
           const username = generateUsername(name);
           const email = generateEmail(username);
-          const enrollmentNumber = generateEnrollmentNumber();
+          const enrollmentNumber = generateEnrollmentNumberWithPrefix();
 
           const studentPromise = (async () => {
             try {

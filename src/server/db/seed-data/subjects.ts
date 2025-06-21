@@ -93,7 +93,7 @@ export const subjectsSeedData = [
 export async function seedSubjects(prisma: PrismaClient, courses: any[]) {
   console.log('Seeding subjects...');
 
-  const createdSubjects = [];
+  const createdSubjects: any[] = [];
 
   // First, check if we have courses
   if (!courses || courses.length === 0) {

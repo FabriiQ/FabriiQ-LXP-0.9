@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/forms/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/loading-button';
 import { 
   Table, 
   TableBody, 
@@ -347,21 +348,16 @@ export function BulkGradingForm({
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Grading Submissions...
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                {watchedSubmissions.filter(s => s.selected).length > 0
-                  ? `Grade ${watchedSubmissions.filter(s => s.selected).length} Submissions`
-                  : 'Grade Submissions'}
-              </>
-            )}
-          </Button>
+          <SubmitButton
+            type="submit"
+            loading={isSubmitting}
+            loadingText="Grading Submissions..."
+            icon={<CheckCircle2 className="h-4 w-4" />}
+          >
+            {watchedSubmissions.filter(s => s.selected).length > 0
+              ? `Grade ${watchedSubmissions.filter(s => s.selected).length} Submissions`
+              : 'Grade Submissions'}
+          </SubmitButton>
         </div>
       </form>
     </Form>

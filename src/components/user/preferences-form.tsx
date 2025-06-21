@@ -1,13 +1,15 @@
+'use client';
+
 import React, { useState } from 'react';
 import { usePreferences } from '@/contexts/preferences-context';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/data-display/card';
-import { Button } from '@/components/ui/atoms/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { RadioGroup } from '@/components/ui/forms/radio';
-import { Checkbox } from '@/components/ui/forms/checkbox';
-import { Switch } from '@/components/ui/atoms/switch';
-import { Label } from '@/components/ui/atoms/label';
-import { Separator } from '@/components/ui/atoms/separator';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/feedback/alert';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, Check, Moon, Sun, Monitor, Bell, Eye, Accessibility } from 'lucide-react';
 import { UserPreferences } from '@/server/api/constants';
 

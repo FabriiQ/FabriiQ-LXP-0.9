@@ -230,6 +230,15 @@ export class AgentRegistry {
       factory: null,
       factoryPath: '../specialized/FeedbackAgent',
     });
+
+    // Essay grading agent
+    this.registerAgentType({
+      type: AgentType.ESSAY_GRADING,
+      name: this.formatAgentTypeName(AgentType.ESSAY_GRADING),
+      description: this.getDefaultDescription(AgentType.ESSAY_GRADING),
+      factory: null,
+      factoryPath: '../specialized/EssayGradingAgent',
+    });
   }
 
   /**
@@ -262,6 +271,8 @@ export class AgentRegistry {
         return 'Discovers and evaluates educational resources';
       case AgentType.FEEDBACK:
         return 'Provides feedback and suggestions for educational content';
+      case AgentType.ESSAY_GRADING:
+        return 'AI-powered essay grading with rubric-based evaluation and feedback generation';
       default:
         return `Agent for ${type}`;
     }

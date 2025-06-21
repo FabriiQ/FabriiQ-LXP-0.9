@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { api } from '@/trpc/react';
 import { ClassLayout } from '../../../components/ClassLayout';
 import {
@@ -17,12 +18,10 @@ import { Separator } from '@/components/ui/atoms/separator';
 import { BulkGradingForm } from './components/BulkGradingForm';
 import { SubmissionStatus } from '@/server/api/constants';
 
-export default function BulkGradePage({
-  params
-}: {
-  params: { id: string; assessmentId: string };
-}) {
-  const { id: classId, assessmentId } = params;
+export default function BulkGradePage() {
+  const params = useParams();
+  const classId = params.id as string;
+  const assessmentId = params.assessmentId as string;
 
   const { data: assessment } = api.assessment.getById.useQuery({
     assessmentId,

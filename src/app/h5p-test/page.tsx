@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 // Import H5P types from the new location
-import { H5PActivityConfig } from '@/features/activities';
+import { H5PActivityConfig } from '@/features/activties';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ClientOnly from '@/components/client-only';
@@ -11,12 +11,12 @@ import { Spinner } from '@/components/ui';
 
 // Dynamically import H5P components with SSR disabled
 const H5PEditor = dynamic(
-  () => import('@/features/activities').then((mod) => mod.H5PEditor),
+  () => import('@/features/activties').then((mod) => mod.H5PEditor),
   { ssr: false }
 );
 
 const H5PViewer = dynamic(
-  () => import('@/features/activities').then((mod) => mod.H5PViewer),
+  () => import('@/features/activties').then((mod) => mod.H5PViewer),
   { ssr: false }
 );
 

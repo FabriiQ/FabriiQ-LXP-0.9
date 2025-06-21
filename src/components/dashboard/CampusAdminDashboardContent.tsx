@@ -4,6 +4,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/data-display/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/navigation/tabs';
 import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { CalendarIcon, GraduationCapIcon, UsersIcon, BookOpenIcon, RefreshCwIcon } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/utils/api';
@@ -193,15 +194,16 @@ export function CampusAdminDashboardContent({ campusId, campusName }: CampusAdmi
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-3xl font-bold tracking-tight">{campusName} Dashboard</h2>
-        <Button
+        <LoadingButton
           variant="outline"
           size="sm"
           onClick={refreshAllData}
-          disabled={isRefreshing}
+          loading={isRefreshing}
+          loadingText="Refreshing..."
+          icon={<RefreshCwIcon className="h-4 w-4" />}
         >
-          <RefreshCwIcon className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
           Refresh Data
-        </Button>
+        </LoadingButton>
       </div>
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="grid w-full grid-cols-5">

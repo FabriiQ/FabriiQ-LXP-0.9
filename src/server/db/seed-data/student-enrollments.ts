@@ -1,4 +1,5 @@
 import { PrismaClient, SystemStatus, UserType, AccessScope } from '@prisma/client';
+import { generateEnrollmentNumber } from '../../utils/enrollment-number';
 
 export async function seedStudentEnrollments(
   prisma: PrismaClient,
@@ -176,7 +177,7 @@ async function createSampleStudentProfiles(prisma: PrismaClient, users: any[]) {
     await prisma.studentProfile.create({
       data: {
         userId: user.id,
-        enrollmentNumber: `SIS-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+        enrollmentNumber: generateEnrollmentNumber('SIS'),
         currentGrade: 'Grade 3',
         academicHistory: {
           previousSchool: 'Previous Elementary School',

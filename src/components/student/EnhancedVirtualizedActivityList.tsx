@@ -6,7 +6,7 @@ import { EducationalLoadingFact } from '@/components/ui/loading/EducationalLoadi
 import { LaborIllusionLoader } from '@/components/ui/loading/LaborIllusionLoader';
 import { useBackgroundPrefetch } from '@/hooks/useBackgroundPrefetch';
 import { api } from '@/utils/api';
-import { saveActivity } from '@/features/activities/offline/db';
+import { saveActivity } from '@/features/activties/offline/db';
 import { isOnline } from '@/utils/offline-storage';
 import { useToast } from '@/components/ui/use-toast';
 import { CACHE_KEYS } from '@/utils/query-config';

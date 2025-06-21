@@ -101,6 +101,15 @@ export const createAgent = async (config: AgentConfig): Promise<AgentState> => {
           capabilities: ['content quality assessment', 'improvement suggestion'],
         },
       };
+    case AgentType.ESSAY_GRADING:
+      return {
+        ...baseAgent,
+        metadata: {
+          ...baseAgent.metadata,
+          specialization: 'essay-grading',
+          capabilities: ['rubric-based grading', 'feedback generation', 'blooms taxonomy analysis'],
+        },
+      };
     default:
       return baseAgent;
   }
