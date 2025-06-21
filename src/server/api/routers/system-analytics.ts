@@ -4,7 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { UserType } from "@prisma/client";
 import { SystemAdminCacheService } from "../services/system-admin-cache.service";
 import { format } from "date-fns";
-import { generateEnrollmentNumber } from "@/utils/enrollment-number";
+import { generateEnrollmentNumber } from "../../../utils/enrollment-number";
 
 /**
  * System Analytics Router
